@@ -41,8 +41,9 @@ export default function LoginPage() {
                 localStorage.setItem('tonttihaku_user', username.trim() || 'Tuntematon');
 
                 // Redirect to home
-                router.push('/');
-                router.refresh(); // Refresh to update server components/middleware state
+                // Use hard redirect to ensure cookies are sent and middleware runs fresh
+                // prevent caching or stale state issues
+                window.location.href = '/'; // Refresh to update server components/middleware state
             } else {
                 setError(data.error || 'Kirjautuminen epäonnistui');
             }
