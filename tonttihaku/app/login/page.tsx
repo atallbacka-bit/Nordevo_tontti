@@ -34,6 +34,9 @@ export default function LoginPage() {
                 // Set cookie for middleware protection (expires in 30 days)
                 document.cookie = `site_auth_token=${data.token}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Strict`;
 
+                // Store token in localStorage for client-side AuthProvider
+                localStorage.setItem('tonttihaku_auth', data.token);
+
                 // Store username for display/auditing
                 localStorage.setItem('tonttihaku_user', username.trim() || 'Tuntematon');
 

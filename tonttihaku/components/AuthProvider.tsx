@@ -30,12 +30,21 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
 
     useEffect(() => {
         // Check auth on mount
-        const token = localStorage.getItem('tonttihaku_auth');
+        const localToken = localStorage.getItem('tonttihaku_auth');
+
+        // Also check cookie as fallback (since middleware relies on it)
+        const cookieToken = document.cookie.split('; ').find(row => row.startsWith('site_auth_token='))?.split('=')[1];
+
+        const token = localToken || cookieToken;
         const storedUser = localStorage.getItem('tonttihaku_user');
 
         if (token) {
             setIsAuthenticated(true);
             setUsernameState(storedUser || 'Tuntematon');
+            // If token in cookie but not local, sync local (optional but good)
+            if (cookieToken && !localToken) {
+                localStorage.setItem('tonttihaku_auth', cookieToken);
+            }
         } else if (pathname !== '/login') {
             router.push('/login');
         }
