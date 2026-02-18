@@ -33,7 +33,9 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
         const localToken = localStorage.getItem('tonttihaku_auth');
 
         // Also check cookie as fallback (since middleware relies on it)
-        const cookieToken = document.cookie.split('; ').find(row => row.startsWith('site_auth_token='))?.split('=')[1];
+        // Use a regex to correctly capture the value even if it contains '=' (like base64 padding)
+        const match = document.cookie.match(/(^|;)\s*site_auth_token=([^;]+)/);
+        const cookieToken = match ? match[2] : undefined;
 
         const token = localToken || cookieToken;
         const storedUser = localStorage.getItem('tonttihaku_user');

@@ -32,7 +32,7 @@ export default function LoginPage() {
 
             if (data.success) {
                 // Set cookie for middleware protection (expires in 30 days)
-                document.cookie = `site_auth_token=${data.token}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Strict`;
+                document.cookie = `site_auth_token=${data.token}; path=/; max-age=${60 * 60 * 24 * 30}; SameSite=Lax`;
 
                 // Store token in localStorage for client-side AuthProvider
                 localStorage.setItem('tonttihaku_auth', data.token);
