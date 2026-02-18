@@ -22,36 +22,21 @@ export function useAuth() {
 }
 
 export default function AuthProvider({ children }: { children: React.ReactNode }) {
-    const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [username, setUsernameState] = useState('Tuntematon');
-    const [isLoading, setIsLoading] = useState(true);
+    // AUTHENTICATION DISABLED (Public Access Mode)
+    // Default to true so all components behave as if logged in
+    const [isAuthenticated, setIsAuthenticated] = useState(true);
+    const [username, setUsernameState] = useState('Vierailija');
+    const [isLoading, setIsLoading] = useState(false); // No loading needed
     const pathname = usePathname();
     const router = useRouter();
 
     useEffect(() => {
-        // Check auth on mount
-        const localToken = localStorage.getItem('tonttihaku_auth');
-
-        // Also check cookie as fallback (since middleware relies on it)
-        // Use a regex to correctly capture the value even if it contains '=' (like base64 padding)
-        const match = document.cookie.match(/(^|;)\s*site_auth_token=([^;]+)/);
-        const cookieToken = match ? match[2] : undefined;
-
-        const token = localToken || cookieToken;
+        // We still check for a stored username just for display purposes
         const storedUser = localStorage.getItem('tonttihaku_user');
-
-        if (token) {
-            setIsAuthenticated(true);
-            setUsernameState(storedUser || 'Tuntematon');
-            // If token in cookie but not local, sync local (optional but good)
-            if (cookieToken && !localToken) {
-                localStorage.setItem('tonttihaku_auth', cookieToken);
-            }
-        } else if (pathname !== '/login') {
-            router.push('/login');
+        if (storedUser) {
+            setUsernameState(storedUser);
         }
-        setIsLoading(false);
-    }, [pathname, router]);
+    }, []);
 
     const setUsername = (name: string) => {
         const trimmed = name.trim() || 'Tuntematon';
