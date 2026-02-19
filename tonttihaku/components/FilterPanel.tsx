@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { ZONING_TYPES, STATUS_OPTIONS } from '@/lib/constants';
-import { ZONING_TYPES, STATUS_OPTIONS } from '@/lib/constants';
 import { PlotFilters, SalesFilters, BusinessPlotFilters } from '@/types';
 
 interface FilterState {
