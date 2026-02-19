@@ -84,7 +84,12 @@ export default function SalesAnalysisLayer({ visible }: SalesAnalysisLayerProps)
                 const wb = XLSX.read(bstr, { type: 'binary' });
                 const wsname = wb.SheetNames[0];
                 const ws = wb.Sheets[wsname];
-                const jsonData = XLSX.utils.sheet_to_json(ws);
+
+                // Read using column letters (A, B, C...) as keys
+                // Verify if headers are at row 4/5 (index 3/4). effectively data starts at row 6 (index 5)
+                // We'll read from row 5 (index 4) to get 'units' line if needed, but data starts row 6 (index 5).
+                // Let's read from index 5.
+                const jsonData = XLSX.utils.sheet_to_json(ws, { header: "A", range: 5 });
 
                 // Process and save
                 await processAndSave((jsonData as any[]));
@@ -103,8 +108,9 @@ export default function SalesAnalysisLayer({ visible }: SalesAnalysisLayerProps)
         const processed: any[] = [];
         const dbItems: any[] = [];
 
-        // 1. Filter Valid Rows (Must have address)
-        const validRows = rawData.filter(row => row['OSOITE'] || row['Osoite']);
+        // 1. Filter Valid Rows (Must have address in Col E and City in A)
+        // Col E = Address, Col A = City.
+        const validRows = rawData.filter(row => row['E'] && row['A']);
 
         setProgress({ current: 0, total: validRows.length, text: 'Valmistellaan...' });
 
@@ -118,8 +124,8 @@ export default function SalesAnalysisLayer({ visible }: SalesAnalysisLayerProps)
         });
 
         for (const row of validRows) {
-            const address = row['OSOITE'] || row['Osoite'];
-            const city = row['KAUPUNKI'] || row['Kaupunki'] || 'Helsinki';
+            const address = row['E']; // Address
+            const city = row['A'] || 'Helsinki'; // City
             const key = `${address}, ${city}`.toLowerCase();
 
             let coords;
@@ -206,7 +212,7 @@ export default function SalesAnalysisLayer({ visible }: SalesAnalysisLayerProps)
 
     // Custom Marker for Price
     const createPriceIcon = (price: number, ownership: string) => {
-        const isOwn = ownership && String(ownership).toUpperCase().startsWith('O');
+        const isOwn = ownership && String(ownership).toUpperCase().startsWith('O'); // O: Ownership check
         const colorClass = isOwn ? 'bg-blue-600' : 'bg-red-600';
         const priceStr = price ? Math.round(price).toString() : '?';
 
@@ -225,9 +231,25 @@ export default function SalesAnalysisLayer({ visible }: SalesAnalysisLayerProps)
 
     // Filter for display based on cutoff year
     const displayData = processedData.filter(item => {
-        const finishedVal = parseInt(String(item['VALMIS']).replace(/[^0-9]/g, '').substring(0, 4) || '0');
-        const unsoldTotal = parseFloat(item['MYYMÄTTÖMÄT YHTEENSÄ'] || item['MYYMÄTTÖMÄT'] || '0');
-        return finishedVal > cutoffYear || unsoldTotal > 0;
+        // Col G: Valmistumisvuosi (YYYYMM) e.g. 202510 (Number) or "202510" (String)
+        const dateVal = item['G'];
+        let finishedYear = 0;
+
+        if (typeof dateVal === 'number') {
+            finishedYear = Math.floor(dateVal / 100); // 202510 -> 2025
+        } else if (typeof dateVal === 'string') {
+            finishedYear = parseInt(dateVal.substring(0, 4)) || 0;
+        }
+
+        // Col AI etc are unsold? User said Unsold AI. 
+        // We can just check "Unsold Total" if there is a summary col.
+        // User didn't give explicit "Unsold Total" column, but K is Total Units, S is Sold Units.
+        // So Unsold = K - S.
+        const totalUnits = parseFloat(item['K']) || 0;
+        const soldUnits = parseFloat(item['S']) || 0;
+        const unsoldTotal = Math.max(0, totalUnits - soldUnits);
+
+        return finishedYear > cutoffYear || unsoldTotal > 0;
     });
 
     return (
@@ -305,8 +327,10 @@ export default function SalesAnalysisLayer({ visible }: SalesAnalysisLayerProps)
             {/* Markers */}
             {displayData.map((item, idx) => {
                 if (!item.lat || !item.lng) return null;
-                const price = parseFloat(item['ASM2'] || item['KESKI-HINTA'] || 0);
-                const ownership = item['TONTTI'];
+                // Col O: Price (Avg Sqm Price)
+                const price = parseFloat(item['O']) || 0;
+                // Col I: Tontin omistusmuoto (Omistus/Vuokra)
+                const ownership = item['I'] || '';
 
                 return (
                     <Marker

@@ -1,6 +1,7 @@
 "use client";
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 interface SalesDataModalProps {
     isOpen: boolean;
@@ -8,34 +9,24 @@ interface SalesDataModalProps {
     data: any;
 }
 
-// Helper to draw a simple pie chart using CSS conic-gradient
-const PieChart = ({ value, total, color = "bg-blue-600", label, rotate = 0 }: { value: number, total: number, color?: string, label?: string, rotate?: number }) => {
+// Chart Components
+const PieChart = ({ value, total, color = "bg-blue-600", label }: { value: number, total: number, color?: string, label?: string }) => {
     const percentage = total > 0 ? (value / total) * 100 : 0;
+    const safePercent = Math.min(100, Math.max(0, percentage));
+
+    // Tailwind colors to hex for conic gradient
+    const hexColor = color.includes('emerald') ? '#10b981' : color.includes('blue') ? '#2563eb' : '#f59e0b';
 
     return (
         <div className="flex flex-col items-center">
-            <div className="relative w-24 h-24 rounded-full bg-slate-200" style={{
-                background: `conic-gradient(var(--tw-gradient-from) ${percentage}%, #e2e8f0 0)`
-            }}>
-                {/* Inner white circle for donut effect (optional, let's stick to pie for now or make it a donut) */}
-                <div className="absolute inset-0 rounded-full flex items-center justify-center font-bold text-sm text-slate-700">
-                    {Math.round(percentage)}%
-                </div>
-                {/* Apply the color class via style variable or class usage hack */}
-                <div className={`absolute inset-0 rounded-full opacity-0 ${color}`} />
-                {/* Since tailwind classes in style attributes don't work for colors directly in conic-gradient without config, 
-                    we'll use direct hex or style injection. Let's use inline style for simplicity. */}
-            </div>
-            {/* Override the above hacky implementation with a better CSS approach */}
-            <div
-                className="relative w-20 h-20 rounded-full flex items-center justify-center shadow-inner"
+            <div className="relative w-20 h-20 rounded-full flex items-center justify-center shadow-sm border border-slate-100"
                 style={{
-                    background: `conic-gradient(${color === 'bg-blue-600' ? '#2563eb' : '#dc2626'} ${percentage}%, #e2e8f0 0)`
+                    background: `conic-gradient(${hexColor} ${safePercent}%, #f1f5f9 0)`
                 }}
             >
-                <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center text-xs font-bold text-gray-700 shadow-sm">
-                    {/* {Math.round(percentage)}% */}
-                    {value}/{total}
+                <div className="w-16 h-16 bg-white rounded-full flex flex-col items-center justify-center text-xs text-gray-700 shadow-inner">
+                    <span className="font-bold">{value}</span>
+                    <span className="text-[10px] text-gray-400">/ {total}</span>
                 </div>
             </div>
             {label && <span className="mt-2 text-xs font-medium text-slate-600 text-center">{label}</span>}
@@ -43,157 +34,179 @@ const PieChart = ({ value, total, color = "bg-blue-600", label, rotate = 0 }: { 
     );
 };
 
-// Mini Pie for unit types
-const MiniPie = ({ sold, total, label }: { sold: number, total: number, label: string }) => {
-    if (!total) return null;
-    const percentage = (sold / total) * 100;
+// Stacked Bar for Units
+const UnitBar = ({ type, sold, unsold }: { type: string, sold: number, unsold: number }) => {
+    const total = sold + unsold;
+    if (total === 0) return null;
+
+    const soldPct = (sold / total) * 100;
+
     return (
-        <div className="flex flex-col items-center p-2 bg-slate-50 rounded-lg border border-slate-100">
-            <span className="text-xs font-bold text-slate-700 mb-1">{label}</span>
-            <div
-                className="relative w-10 h-10 rounded-full mb-1"
-                style={{
-                    background: `conic-gradient(#2563eb ${percentage}%, #e2e8f0 0)`
-                }}
-            />
-            <span className="text-[10px] text-slate-500">{sold} / {total}</span>
+        <div className="flex flex-col gap-1 min-w-[60px]">
+            <div className="h-24 w-full bg-slate-100 rounded-t-lg relative flex flex-col-reverse overflow-hidden">
+                <div style={{ height: `${soldPct}%` }} className="w-full bg-blue-500 transition-all duration-500" title={`Myyty: ${sold}`} />
+                <div style={{ height: `${100 - soldPct}%` }} className="w-full bg-orange-300 transition-all duration-500" title={`Vapaa: ${unsold}`} />
+            </div>
+            <div className="text-center">
+                <div className="text-xs font-bold text-slate-700">{type}</div>
+                <div className="text-[10px] text-slate-500">{sold}/{total}</div>
+            </div>
         </div>
     );
 };
 
 export default function SalesDataModal({ isOpen, onClose, data }: SalesDataModalProps) {
-    if (!isOpen || !data) return null;
+    const [mounted, setMounted] = useState(false);
 
-    // Helper to verify if column exists and get value safely
-    const getVal = (key: string) => data[key] || 0;
+    useEffect(() => {
+        setMounted(true);
+        return () => setMounted(false);
+    }, []);
+
+    if (!isOpen || !data || !mounted) return null;
+
+    // --- DATA MAPPING ---
+    // User specified Columns:
+    // K: Total Units
+    // L: Total Size
+    // N: Avg Area
+    // O: Price/sqm
+    // P: Price Coverage %
+    // S: Sold Units
+
+    // Unit Type Mapping (Total = Sold + Unsold)
+    // 1H: Y (Sold) + AI (Unsold)
+    // 1-2H: Z + AJ
+    // 2H: AA + AK
+    // ... incrementing both
+
+    const getNum = (key: string) => {
+        const val = data[key];
+        if (typeof val === 'number') return val;
+        if (typeof val === 'string') return parseFloat(val.replace(/,/g, '.')) || 0;
+        return 0;
+    };
+
     const getStr = (key: string) => data[key] || '-';
 
-    // Parse main stats
-    const soldArea = parseFloat(getVal('MYYTY YHTEENSÄ') || 0); // Note: Column name might need adjustment based on exact Excel heade
-    // Based on user prompt: "MYYTY PINTA-ALA" or similar. Let's look at the example data structure in prompt.
-    // "MYYTY PINTA-ALA" isn't explicitly there, but "MYYTY" under "YHTEENSÄ"? 
-    // The prompt headers are a bit messy: KAUPUNKI ... MYYTY MYYNNISSÄ MYYNTI- ASTE ... YHTEENSÄ YHTEENSÄ YHTEENSÄ
-    // It seems there are grouped headers. `xlsx` JSON parsing usually handles unique keys.
-    // I will assume standard unique keys or that I'll need to inspect the row data.
-    // For now, I'll try to match the prompt's likely keys.
+    const address = getStr('E');
+    const city = getStr('A');
+    const lat = data.lat;
 
-    // Attempting to match based on the prompt's "MYYTY" and "YHTEENSÄ" columns often created by Excel export
-    // If headers are duplicate in Excel, `xlsx` appends _1, _2. 
-    // I'll assume for this implementation that the caller (SalesAnalysisLayer) cleans/maps the data or we try flexible access.
+    // Stats
+    const totalUnits = getNum('K');
+    const totalsize = getNum('L');
+    const soldUnits = getNum('S');
+    const unsoldUnits = Math.max(0, totalUnits - soldUnits);
 
-    // Let's use the keys provided in the user's prompt example row if possible, 
-    // but better: I will render the raw data keys if I can't find specific ones, OR providing a fallback.
+    const avgArea = getNum('N');
+    const avgPriceSqm = getNum('O');
+    const priceCoverage = getNum('P');
 
-    // Fallback logic for demo purposes based on standard expectations:
-    const totalArea = parseFloat(getVal('ASM2'));
-    // "MYYTY" is likely the sold area? Or "MYYTY" (units)?
-    // The prompt shows: MYYTY, MYYNNISSÄ, MYYNTIASTE... then YHTEENSÄ...
-    // Let's calculate from what we have.
-    const unitsTotal = parseFloat(getVal('ASUNTOJA'));
-    const unitsSold = parseFloat(getVal('MYYTY')); // This might be units sold
-    const unitsUnsold = parseFloat(getVal('MYYNNISSÄ'));
+    // Unit Types
+    // Keys defined by pattern: Sold start Y (col 24 index?), Unsold start AI (col 34 index?)
+    // Actually passing keys as "Y", "Z", etc. from the sheet parser.
+    const unitConfigs = [
+        { label: '1H', soldKey: 'Y', unsoldKey: 'AI' },
+        { label: '1-2H', soldKey: 'Z', unsoldKey: 'AJ' },
+        { label: '2H', soldKey: 'AA', unsoldKey: 'AK' },
+        { label: '2-3H', soldKey: 'AB', unsoldKey: 'AL' },
+        { label: '3H', soldKey: 'AC', unsoldKey: 'AM' },
+        { label: '3-4H', soldKey: 'AD', unsoldKey: 'AN' },
+        { label: '4H', soldKey: 'AE', unsoldKey: 'AO' },
+        { label: '4-5H', soldKey: 'AF', unsoldKey: 'AP' },
+        { label: '5H+', soldKey: 'AG', unsoldKey: 'AQ' },
+    ];
 
-    // If explicit sold area isn't there, we might need to rely on what's available.
-    // Let's map "MYYTY YHTEENSÄ" if it exists, otherwise just show what we find.
-
-    const avgPrice = getStr('KESKI-HINTA') !== '-' ? getStr('KESKI-HINTA') : data['ASM2'] ? data['ASM2'] : '-'; // Example fallback
-
-    return (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto flex flex-col" onClick={e => e.stopPropagation()}>
+    const modalContent = (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4" onClick={onClose}>
+            <div
+                className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto flex flex-col animate-in fade-in zoom-in-95 duration-200"
+                onClick={e => e.stopPropagation()}
+            >
                 {/* Header */}
-                <div className="p-6 border-b border-slate-100 flex justify-between items-start">
+                <div className="p-5 border-b border-slate-100 flex justify-between items-start bg-slate-50/50">
                     <div>
-                        <h2 className="text-xl font-bold text-slate-900">{getStr('OSOITE')}</h2>
-                        <p className="text-slate-500 font-medium">{getStr('KOHDE')} | {getStr('KAUPUNKI')}</p>
-                        <div className="flex gap-4 mt-2 text-sm text-slate-600">
-                            <span>🏗️ {getStr('RAKENTAJA')}</span>
-                            <span>📅 Valmis: {getStr('VALMIS')}</span>
-                            <span>📜 {getStr('TONTTI')}</span>
+                        <h2 className="text-xl font-bold text-slate-900">{address}</h2>
+                        <p className="text-slate-500 font-medium">{city}</p>
+                        <div className="flex flex-wrap gap-4 mt-2 text-xs text-slate-600">
+                            <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded">Keskiarvo: {avgArea.toFixed(1)} m²</span>
+                            <span className="bg-green-50 text-green-700 px-2 py-1 rounded">Hinnan peitto: {priceCoverage}%</span>
                         </div>
                     </div>
-                    <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-2">✕</button>
+                    <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-2 text-xl font-bold">&times;</button>
                 </div>
 
                 {/* Content */}
                 <div className="p-6 space-y-8">
 
-                    {/* Key Stats Row */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        {/* Price Info */}
-                        <div className="bg-blue-50/50 p-6 rounded-xl border border-blue-100 flex flex-col items-center justify-center text-center">
-                            <span className="text-sm font-semibold text-blue-600 uppercase tracking-wider mb-1">Keski-hinta</span>
-                            <span className="text-3xl font-bold text-slate-900">{typeof avgPrice === 'number' ? Math.round(avgPrice).toLocaleString() : avgPrice} €/m²</span>
-                            {data['HINTA'] && <span className="text-sm text-slate-500 mt-2">Hinta yhteensä: {typeof data['HINTA'] === 'number' ? data['HINTA'].toLocaleString() : data['HINTA']} €</span>}
+                    {/* Top Row: Price & Pie Charts */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
+
+                        {/* Price Card */}
+                        <div className="bg-gradient-to-br from-blue-50 to-white p-6 rounded-xl border border-blue-100 flex flex-col items-center justify-center text-center shadow-sm h-full">
+                            <span className="text-xs font-bold text-blue-600 uppercase tracking-wider mb-2">Keskineliöhinta</span>
+                            <span className="text-3xl font-extrabold text-slate-900 tracking-tight">
+                                {Math.round(avgPriceSqm).toLocaleString()} <span className="text-lg text-slate-500 font-normal">€/m²</span>
+                            </span>
+                            <div className="mt-4 pt-4 border-t border-blue-100 w-full flex justify-between text-xs text-slate-600">
+                                <span>Koko: <b>{totalsize.toLocaleString()} m²</b></span>
+                                <span>Asuntoja: <b>{totalUnits}</b></span>
+                            </div>
                         </div>
 
-                        {/* Charts */}
-                        <div className="flex justify-around items-center gap-4">
-                            {/* Units Pie */}
+                        {/* Pie Charts */}
+                        <div className="col-span-1 md:col-span-2 flex justify-around items-center bg-slate-50 rounded-xl p-4 border border-slate-100 h-full">
+                            {/* Sold Units Pie */}
                             <PieChart
-                                value={unitsSold || 0}
-                                total={unitsTotal || 1}
-                                label="Asunnot (kpl)"
+                                value={soldUnits}
+                                total={totalUnits}
+                                label="Myydyt asunnot (kpl)"
                                 color="bg-blue-600"
                             />
-                            {/* Area Pie - fallback to units if area data missing to avoid broken UI */}
+                            {/* Unsold Units Pie */}
                             <PieChart
-                                // Try to find sold area in data, if not use units as placeholder or hidden
-                                value={data['MYYTY PINTA-ALA'] || data['MYYTY_2'] || 0} // Guessing key names based on common Excel duplicates
-                                total={totalArea || 1}
-                                label="Pinta-ala (m²)"
-                                color="bg-emerald-500"
+                                value={unsoldUnits}
+                                total={totalUnits}
+                                label="Vapaat asunnot (kpl)"
+                                color="bg-orange-400"
                             />
                         </div>
                     </div>
 
                     {/* Unit Breakdown */}
                     <div>
-                        <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-4 border-b pb-2">Huoneistojakauma</h3>
-                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
-                            {['1H', '1-2H', '2H', '2-3H', '3H', '3-4H', '4H', '4-5H', '5H &+'].map(type => {
-                                // Try to construct keys. In Excel import, duplicate headers like "MYYTY" often get suffixed.
-                                // We'll need intelligent key matching in the parent or strict column ordering.
-                                // For now, let's assume the data object passed here contains clean keys like "1H_MYYTY" or similar 
-                                // IF the parser handles it.
-                                // Since I can't guarantee parser logic yet, I'll display what I can.
-                                // Let's try direct access if the user provided flat headers like "1H" for total and "1H_1" for sold?
-                                // Actually, typical Excel row: "1H" (Total) ... "1H" (Sold).
-                                // `xlsx` usually converts to `1H`, `1H_1`.
-                                const total = data[type];
-                                const sold = data[`${type}_MYYTY`] || data[`${type}_1`] || 0; // heuristic
-                                if (!total) return null;
-                                return <MiniPie key={type} label={type} total={total} sold={sold} />;
+                        <div className="flex items-center justify-between mb-4 border-b pb-2">
+                            <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">Huoneistojakauma</h3>
+                            <div className="flex gap-4 text-[10px] font-medium">
+                                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500"></span> Myyty</span>
+                                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-orange-300"></span> Vapaa</span>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-wrap gap-4 justify-start overflow-x-auto pb-2">
+                            {unitConfigs.map(conf => {
+                                const sold = getNum(conf.soldKey);
+                                const unsold = getNum(conf.unsoldKey);
+                                return <UnitBar key={conf.label} type={conf.label} sold={sold} unsold={unsold} />;
                             })}
                         </div>
                     </div>
 
-                    {/* Debug / Full Data Table (Foldable) */}
-                    <details className="group">
-                        <summary className="cursor-pointer text-xs text-slate-400 font-medium hover:text-blue-600 transition-colors list-none flex items-center gap-2">
-                            <span className="group-open:rotate-90 transition-transform">▶</span> Näytä kaikki tiedot (Debug)
+                    {/* Raw Data Toggle */}
+                    <details className="group pt-4 border-t">
+                        <summary className="cursor-pointer text-xs text-slate-400 hover:text-blue-600 list-none flex items-center gap-2">
+                            <span className="group-open:rotate-90 transition-transform">▶</span> Debug: Raw Data
                         </summary>
-                        <div className="mt-4 overflow-x-auto bg-slate-50 p-4 rounded-lg border border-slate-100">
-                            <table className="w-full text-xs text-left">
-                                <thead>
-                                    <tr className="border-b border-slate-200">
-                                        <th className="py-1 px-2 font-medium text-slate-600">Avain</th>
-                                        <th className="py-1 px-2 font-medium text-slate-600">Arvo</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {Object.entries(data).map(([k, v]) => (
-                                        <tr key={k} className="border-b border-slate-100 hover:bg-white">
-                                            <td className="py-1 px-2 text-slate-500 font-mono">{k}</td>
-                                            <td className="py-1 px-2 text-slate-800 break-words max-w-xs">{String(v)}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                        <div className="mt-2 p-2 bg-slate-100 rounded text-[10px] font-mono overflow-auto max-h-40">
+                            <pre>{JSON.stringify(data, null, 2)}</pre>
                         </div>
                     </details>
+
                 </div>
             </div>
         </div>
     );
+
+    return createPortal(modalContent, document.body);
 }
