@@ -22,6 +22,7 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import FilterPanel from './FilterPanel';
 import AddPlotModal from './AddPlotModal';
+import SalesAnalysisLayer from './SalesAnalysisLayer';
 import { ZONING_TYPES, getZoningColor, getPlotColor, STATUS_OPTIONS } from '@/lib/constants';
 import { PlotFilters, SalesFilters } from '@/types';
 import MarkSoldModal from './MarkSoldModal';
@@ -274,6 +275,7 @@ export default function MapComponent() {
     const [showMaapera, setShowMaapera] = useState(false);
     const [showMelu, setShowMelu] = useState(false);
     const [showKorkeus, setShowKorkeus] = useState(false);
+    const [showSalesAnalysis, setShowSalesAnalysis] = useState(false);
 
     const wmsLayerRef = useRef<L.TileLayer.WMS>(null);
     const korkeusLayerRef = useRef<L.TileLayer.WMS>(null);
@@ -751,6 +753,7 @@ export default function MapComponent() {
         if (layer === 'korkeus') setShowKorkeus(visible);
         if (layer === 'kiinteistot') setShowKiinteistot(visible);
         if (layer === 'asemakaava_info') setShowAsemakaavaInfo(visible);
+        if (layer === 'sales_analysis') setShowSalesAnalysis(visible);
 
         if (layer === 'sales') {
             setShowSales(visible);
@@ -814,7 +817,8 @@ export default function MapComponent() {
                     maapera: showMaapera,
                     melu: showMelu,
                     edit_mode: editMode,
-                    add_plot_mode: addPlotMode
+                    add_plot_mode: addPlotMode,
+                    sales_analysis: showSalesAnalysis
                 }}
                 onPlotFiltersChange={setPlotFilters}
                 onSalesFiltersChange={setSalesFilters}
@@ -923,7 +927,8 @@ export default function MapComponent() {
                         const markerSize = getMarkerSize(totalBR);
                         const label = getZoningLabel(zonings);
 
-                        const unitPrice = (plot.priceEst && totalBR) ? Math.round(plot.priceEst / totalBR) : null;
+                        const priceToUse = (plot.status === 'Tarjottu' && plot.offerPrice) ? plot.offerPrice : plot.priceEst;
+                        const unitPrice = (priceToUse && totalBR) ? Math.round(priceToUse / totalBR) : null;
 
                         // Status determination
                         const isCompetition = plot.status === 'Kilpailussa';
@@ -979,6 +984,7 @@ export default function MapComponent() {
                             ">
                                 <div>${label}</div>
                                 <div style="font-size:0.8em; opacity:0.9;">${totalBR.toLocaleString()}</div>
+                                ${unitPrice ? `<div style='font-size:0.75em; background:rgba(0,0,0,0.15); padding:0 3px; border-radius:3px; margin-top:2px;'>${unitPrice.toLocaleString()} €</div>` : ''}
                             </div>`;
                         } else if (isSold) {
                             // Sold: Gray/Transparent with Data
@@ -1112,7 +1118,16 @@ export default function MapComponent() {
 
                                             <div className="grid grid-cols-2 gap-x-2 text-gray-700">
                                                 <span>Pinta-ala:</span> <span className="font-medium">{plot.area} m²</span>
-                                                <span>Hinta-arvio:</span> <span className="font-medium">{plot.priceEst?.toLocaleString()} €</span>
+                                                <span>{plot.status === 'Tarjottu' ? 'Tarjous:' : 'Hinta-arvio:'}</span>
+                                                <span className="font-medium">
+                                                    {(plot.status === 'Tarjottu' && plot.offerPrice ? plot.offerPrice : plot.priceEst)?.toLocaleString()} €
+                                                </span>
+                                                {unitPrice && (
+                                                    <>
+                                                        <span>Yksikköhinta:</span>
+                                                        <span className="font-medium">{unitPrice.toLocaleString()} €/k-m²</span>
+                                                    </>
+                                                )}
                                             </div>
                                             <p className="text-gray-800">Myyjä: <span className="font-semibold">{plot.seller || '-'}</span></p>
                                             {plot.kiinteistotunnus && <p className="text-gray-800">Kiinteistötunnus: <span className="font-semibold">{plot.kiinteistotunnus}</span></p>}
@@ -1341,6 +1356,9 @@ export default function MapComponent() {
                                 opacity={0.6}
                             />
                         )}
+
+                        {/* Custom Analysis Layers */}
+                        <SalesAnalysisLayer visible={showSalesAnalysis} />
 
                         {/* Main Plot Layer - only shows after search */}
                         {hasSearched && (
