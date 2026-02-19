@@ -1377,6 +1377,7 @@ export default function MapComponent() {
                     {/* Custom Analysis Layers - outside Pane for UI visibility */}
                     <SalesAnalysisLayer visible={showSalesAnalysis} />
                 </MapContainer>
+                {/* Deployment version trigger: Fix regression v2 */}
             </div>
 
             {/* Modals - rendered outside MapContainer to prevent scroll event capture by Leaflet */}
