@@ -37,3 +37,9 @@ next-env.d.ts
 data/*.db
 data/*.xlsx
 data/*.bak
+
+# Data Processing
+scripts/process_sales_data.js
+scripts/test_process.js
+processed_sales_data.json
+NEW_appartment_data_10_2025.xlsx

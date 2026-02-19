@@ -1357,8 +1357,7 @@ export default function MapComponent() {
                             />
                         )}
 
-                        {/* Custom Analysis Layers */}
-                        <SalesAnalysisLayer visible={showSalesAnalysis} />
+
 
                         {/* Main Plot Layer - only shows after search */}
                         {hasSearched && (
@@ -1374,6 +1373,9 @@ export default function MapComponent() {
                         )}
                     </Pane>
                     <WMSUpdater cqlFilter={cqlFilter} opacity={wmsOpacity} layerRef={wmsLayerRef} />
+
+                    {/* Custom Analysis Layers - outside Pane for UI visibility */}
+                    <SalesAnalysisLayer visible={showSalesAnalysis} />
                 </MapContainer>
             </div>
 
