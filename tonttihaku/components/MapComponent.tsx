@@ -23,6 +23,7 @@ import L from 'leaflet';
 import FilterPanel from './FilterPanel';
 import AddPlotModal from './AddPlotModal';
 import SalesAnalysisLayer from './SalesAnalysisLayer';
+import BusinessPlotsLayer from './BusinessPlotsLayer';
 import { ZONING_TYPES, getZoningColor, getPlotColor, STATUS_OPTIONS } from '@/lib/constants';
 import { PlotFilters, SalesFilters } from '@/types';
 import MarkSoldModal from './MarkSoldModal';
@@ -276,6 +277,7 @@ export default function MapComponent() {
     const [showMelu, setShowMelu] = useState(false);
     const [showKorkeus, setShowKorkeus] = useState(false);
     const [showSalesAnalysis, setShowSalesAnalysis] = useState(false);
+    const [showBusinessPlots, setShowBusinessPlots] = useState(false);
 
     const wmsLayerRef = useRef<L.TileLayer.WMS>(null);
     const korkeusLayerRef = useRef<L.TileLayer.WMS>(null);
@@ -754,6 +756,7 @@ export default function MapComponent() {
         if (layer === 'kiinteistot') setShowKiinteistot(visible);
         if (layer === 'asemakaava_info') setShowAsemakaavaInfo(visible);
         if (layer === 'sales_analysis') setShowSalesAnalysis(visible);
+        if (layer === 'business_plots') setShowBusinessPlots(visible);
 
         if (layer === 'sales') {
             setShowSales(visible);
@@ -818,7 +821,8 @@ export default function MapComponent() {
                     melu: showMelu,
                     edit_mode: editMode,
                     add_plot_mode: addPlotMode,
-                    sales_analysis: showSalesAnalysis
+                    sales_analysis: showSalesAnalysis,
+                    business_plots: showBusinessPlots
                 }}
                 onPlotFiltersChange={setPlotFilters}
                 onSalesFiltersChange={setSalesFilters}
@@ -1376,6 +1380,7 @@ export default function MapComponent() {
 
                     {/* Custom Analysis Layers - outside Pane for UI visibility */}
                     <SalesAnalysisLayer visible={showSalesAnalysis} />
+                    <BusinessPlotsLayer visible={showBusinessPlots} />
                 </MapContainer>
                 {/* Deployment version trigger: Fix regression v2 */}
             </div>

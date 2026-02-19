@@ -30,6 +30,7 @@ interface LayerStates {
     edit_mode: boolean;
     add_plot_mode: boolean;
     sales_analysis: boolean;
+    business_plots: boolean;
 }
 
 interface FilterPanelProps {
@@ -487,6 +488,7 @@ export default function FilterPanel({
                         {/* Layer Toggle Component */}
                         {[
                             { id: 'sales_analysis', label: 'Myyntianalyysi', desc: 'Analysoi myyntidataa Excelistä' },
+                            { id: 'business_plots', label: 'Vapaat yritystontit', desc: 'Helsingin kaupungin vapaat tontit' },
                             { id: 'kiinteistot', label: 'Kiinteistöt', desc: 'Kiinteistörajat ja -tunnukset' },
                             { id: 'asemakaava_info', label: 'Asemakaavatiedot', desc: 'Klikkaa karttaa nähdäksesi tiedot' },
                             { id: 'sales', label: 'Myydyt tontit', desc: 'Toteutuneet tonttikaupat' },
