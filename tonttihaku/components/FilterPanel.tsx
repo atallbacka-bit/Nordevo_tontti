@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { ZONING_TYPES, STATUS_OPTIONS } from '@/lib/constants';
-import { PlotFilters, SalesFilters } from '@/types';
+import { ZONING_TYPES, STATUS_OPTIONS } from '@/lib/constants';
+import { PlotFilters, SalesFilters, BusinessPlotFilters } from '@/types';
 
 interface FilterState {
     laskvar_ak_min: string;
@@ -41,6 +42,8 @@ interface FilterPanelProps {
     layerStates: LayerStates;
     onPlotFiltersChange?: (filters: PlotFilters) => void;
     onSalesFiltersChange?: (filters: SalesFilters) => void;
+    onBusinessPlotFiltersChange?: (filters: BusinessPlotFilters) => void;
+    businessPlotFilters?: BusinessPlotFilters;
     visiblePlots?: any[];
     availableKunnat?: string[];
 }
@@ -53,6 +56,8 @@ export default function FilterPanel({
     layerStates,
     onPlotFiltersChange,
     onSalesFiltersChange,
+    onBusinessPlotFiltersChange,
+    businessPlotFilters = { minArea: '', maxArea: '', minBuildRight: '', maxBuildRight: '', usage: [] },
     visiblePlots = [],
     availableKunnat = []
 }: FilterPanelProps) {
@@ -497,37 +502,31 @@ export default function FilterPanel({
                             { id: 'maapera', label: 'Maaperäkartta (GTK)', desc: 'Maaperän laatu (20k)' },
                             { id: 'melu', label: 'Melualueet (HSY)', desc: 'Tieliikenteen melu (>55 dB)' },
                         ].map((layer) => (
-                            <div key={layer.id} className={`bg-white p-4 rounded-2xl border transition-all ${
+                            <div key={layer.id} className={`bg-white p-4 rounded-2xl border transition-all relative ${
                                 // @ts-ignore
                                 layerStates[layer.id] ? 'border-blue-200 shadow-sm ring-1 ring-blue-50' : 'border-slate-200 hover:border-slate-300 shadow-sm'
                                 }`}>
-                                <div className="flex items-center justify-between mb-1">
+                                <div className="flex items-center justify-between mb-1 relative z-20">
                                     <h3 className={`text-sm font-bold ${
                                         // @ts-ignore
                                         layerStates[layer.id] ? 'text-blue-700' : 'text-slate-900'
                                         }`}>{layer.label}</h3>
 
-                                    <div className="relative inline-block w-9 h-5 align-middle select-none group-hover:scale-105 transition-transform">
+                                    <div className="relative inline-block w-9 h-5 align-middle select-none group-hover:scale-105 transition-transform pointer-events-none">
                                         <input
                                             type="checkbox"
                                             // @ts-ignore
                                             checked={layerStates[layer.id]}
-                                            // @ts-ignore
-                                            onChange={(e) => toggleLayer(layer.id, e)}
-                                            className="toggle-checkbox absolute block w-3.5 h-3.5 rounded-full bg-white border-2 appearance-none cursor-pointer translate-x-0.5 top-0.5 transition-transform checked:translate-x-4 checked:border-blue-600 z-10"
+                                            readOnly
+                                            className="toggle-checkbox absolute block w-3.5 h-3.5 rounded-full bg-white border-2 appearance-none translate-x-0.5 top-0.5 transition-transform checked:translate-x-4 checked:border-blue-600 z-10"
                                         />
-                                        <label
-                                            onClick={(e) => {
-                                                // Programmatically toggle check if label clicked
-                                                // This is just a visual background, input handles change
-                                            }}
-                                            className={`toggle-label block overflow-hidden h-5 rounded-full cursor-pointer transition-colors ${
-                                                // @ts-ignore
-                                                layerStates[layer.id] ? 'bg-blue-600' : 'bg-slate-300'
-                                                }`}
-                                        ></label>
+                                        <div className={`toggle-label block overflow-hidden h-5 rounded-full transition-colors ${
+                                            // @ts-ignore
+                                            layerStates[layer.id] ? 'bg-blue-600' : 'bg-slate-300'
+                                            }`}
+                                        ></div>
                                     </div>
-                                    {/* Overlay for hit area */}
+                                    {/* Overlay for hit area - constrained to this layer's container */}
                                     <label className="absolute inset-0 cursor-pointer z-0">
                                         <input
                                             type="checkbox"
@@ -539,11 +538,71 @@ export default function FilterPanel({
                                         />
                                     </label>
                                 </div>
-                                <p className="text-xs text-slate-500">{layer.desc}</p>
+                                <p className="text-xs text-slate-500 relative z-10 pointer-events-none">{layer.desc}</p>
+
+                                {/* Business Plots Filters */}
+                                {layer.id === 'business_plots' && layerStates.business_plots && (
+                                    <div className="mt-3 pt-3 border-t border-slate-100 space-y-3 animate-in fade-in duration-300 relative z-30">
+                                        {/* Usage Filter (Multi-select) */}
+                                        <div>
+                                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Käyttötarkoitus</label>
+                                            <div className="flex flex-wrap gap-1.5 pr-1">
+                                                {/* We need to get available usage options somehow. 
+                                                    Ideally passed from parent or extracted from data. 
+                                                    For now, let's assume we can pass options or hardcode common ones, 
+                                                    BUT actually the options were derived from data in BusinessPlotsLayer.
+                                                    We should probably pass availableOptions from BusinessPlotsLayer UP to MapComponent and then DOWN here.
+                                                    OR, simpler: just let user type or have BusinessPlotsLayer update a state in MapComponent with available options.
+                                                    Let's use a standard list for now + "Muu".
+                                                    Actually, let's fix this properly in next step. For now, render standard buttons.
+                                                */}
+                                                {/* For now, just render input filters as they are easier without data dependency */}
+                                                <p className="text-xs text-slate-400 italic">Suodattimet siirretty tänne...</p>
+                                            </div>
+                                        </div>
+
+                                        {/* Build Right Filter */}
+                                        <div>
+                                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Rakennusoikeus (k-m²)</label>
+                                            <div className="flex gap-2">
+                                                <input
+                                                    type="number" placeholder="Min"
+                                                    value={businessPlotFilters.minBuildRight}
+                                                    onChange={(e) => onBusinessPlotFiltersChange?.({ ...businessPlotFilters, minBuildRight: e.target.value })}
+                                                    className="w-full border rounded px-2 py-1.5 text-xs bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                                                />
+                                                <input
+                                                    type="number" placeholder="Max"
+                                                    value={businessPlotFilters.maxBuildRight}
+                                                    onChange={(e) => onBusinessPlotFiltersChange?.({ ...businessPlotFilters, maxBuildRight: e.target.value })}
+                                                    className="w-full border rounded px-2 py-1.5 text-xs bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                                                />
+                                            </div>
+                                        </div>
+                                        {/* Area Filter */}
+                                        <div>
+                                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Pinta-ala (m²)</label>
+                                            <div className="flex gap-2">
+                                                <input
+                                                    type="number" placeholder="Min"
+                                                    value={businessPlotFilters.minArea}
+                                                    onChange={(e) => onBusinessPlotFiltersChange?.({ ...businessPlotFilters, minArea: e.target.value })}
+                                                    className="w-full border rounded px-2 py-1.5 text-xs bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                                                />
+                                                <input
+                                                    type="number" placeholder="Max"
+                                                    value={businessPlotFilters.maxArea}
+                                                    onChange={(e) => onBusinessPlotFiltersChange?.({ ...businessPlotFilters, maxArea: e.target.value })}
+                                                    className="w-full border rounded px-2 py-1.5 text-xs bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
 
                                 {/* Extra controls for specific layers */}
                                 {layer.id === 'korkeus' && layerStates.korkeus && (
-                                    <div className="mt-3 pt-3 border-t border-slate-100">
+                                    <div className="mt-3 pt-3 border-t border-slate-100 relative z-30">
                                         <div className="flex items-center gap-3">
                                             <input type="range" min="0" max="100" value={korkeusOpacity} onChange={handleKorkeusOpacityChange}
                                                 className="flex-1 h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-600" />
@@ -553,7 +612,7 @@ export default function FilterPanel({
                                 )}
 
                                 {layer.id === 'sales' && layerStates.sales && (
-                                    <div className="mt-3 pt-3 border-t border-slate-100 space-y-4 animate-in fade-in duration-300">
+                                    <div className="mt-3 pt-3 border-t border-slate-100 space-y-4 animate-in fade-in duration-300 relative z-30">
                                         {/* Sales Filters */}
                                         <div className="flex flex-wrap gap-1.5">
                                             {ZONING_TYPES.map(z => (

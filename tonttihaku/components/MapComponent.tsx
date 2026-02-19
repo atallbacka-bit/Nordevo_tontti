@@ -25,7 +25,7 @@ import AddPlotModal from './AddPlotModal';
 import SalesAnalysisLayer from './SalesAnalysisLayer';
 import BusinessPlotsLayer from './BusinessPlotsLayer';
 import { ZONING_TYPES, getZoningColor, getPlotColor, STATUS_OPTIONS } from '@/lib/constants';
-import { PlotFilters, SalesFilters } from '@/types';
+import { PlotFilters, SalesFilters, BusinessPlotFilters } from '@/types';
 import MarkSoldModal from './MarkSoldModal';
 import NoteModal from './NoteModal';
 import MarkOfferedModal from './MarkOfferedModal';
@@ -333,6 +333,15 @@ export default function MapComponent() {
         zoningTypes: [],
         buildingRightMin: '',
         buildingRightMax: ''
+    });
+
+    // Business Plot filters state
+    const [businessPlotFilters, setBusinessPlotFilters] = useState<BusinessPlotFilters>({
+        minArea: '',
+        maxArea: '',
+        minBuildRight: '',
+        maxBuildRight: '',
+        usage: []
     });
 
     const [showKiinteistot, setShowKiinteistot] = useState(false);

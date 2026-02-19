@@ -94,3 +94,11 @@ export interface SalesFilters {
     buildingRightMin: string;
     buildingRightMax: string;
 }
+
+export interface BusinessPlotFilters {
+    minArea: string;
+    maxArea: string;
+    minBuildRight: string;
+    maxBuildRight: string;
+    usage: string[];
+}
