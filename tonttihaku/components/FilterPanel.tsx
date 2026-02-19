@@ -547,19 +547,36 @@ export default function FilterPanel({
                                         {/* Usage Filter (Multi-select) */}
                                         <div>
                                             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Käyttötarkoitus</label>
-                                            <div className="flex flex-wrap gap-1.5 pr-1">
-                                                {/* We need to get available usage options somehow. 
-                                                    Ideally passed from parent or extracted from data. 
-                                                    For now, let's assume we can pass options or hardcode common ones, 
-                                                    BUT actually the options were derived from data in BusinessPlotsLayer.
-                                                    We should probably pass availableOptions from BusinessPlotsLayer UP to MapComponent and then DOWN here.
-                                                    OR, simpler: just let user type or have BusinessPlotsLayer update a state in MapComponent with available options.
-                                                    Let's use a standard list for now + "Muu".
-                                                    Actually, let's fix this properly in next step. For now, render standard buttons.
-                                                */}
-                                                {/* For now, just render input filters as they are easier without data dependency */}
-                                                <p className="text-xs text-slate-400 italic">Suodattimet siirretty tänne...</p>
+                                            <div className="flex flex-wrap gap-1.5 pr-1 max-h-32 overflow-y-auto custom-scrollbar">
+                                                {businessUsageOptions.map(opt => (
+                                                    <button
+                                                        key={opt}
+                                                        onClick={() => {
+                                                            const currentUsage = businessPlotFilters.usage || [];
+                                                            const isSelected = currentUsage.includes(opt);
+                                                            const newUsage = isSelected
+                                                                ? currentUsage.filter(u => u !== opt)
+                                                                : [...currentUsage, opt];
+                                                            onBusinessPlotFiltersChange?.({ ...businessPlotFilters, usage: newUsage });
+                                                        }}
+                                                        className={`px-2.5 py-1 text-xs font-medium rounded-md border transition-all ${businessPlotFilters.usage?.includes(opt)
+                                                                ? 'bg-slate-800 text-white border-slate-800 shadow-sm'
+                                                                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                                                            }`}
+                                                    >
+                                                        {opt}
+                                                    </button>
+                                                ))}
+                                                {businessUsageOptions.length === 0 && <span className="text-xs text-gray-400 italic">Ladataan...</span>}
                                             </div>
+                                            {businessPlotFilters.usage && businessPlotFilters.usage.length > 0 && (
+                                                <button
+                                                    onClick={() => onBusinessPlotFiltersChange?.({ ...businessPlotFilters, usage: [] })}
+                                                    className="text-[10px] text-blue-600 hover:underline mt-1.5"
+                                                >
+                                                    Tyhjennä valinnat
+                                                </button>
+                                            )}
                                         </div>
 
                                         {/* Build Right Filter */}

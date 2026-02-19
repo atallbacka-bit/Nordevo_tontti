@@ -69,7 +69,7 @@ export default function BusinessPlotsLayer({
                 <div class="relative flex flex-col items-center group cursor-pointer transition-transform hover:scale-110 hover:z-50" style="transform-origin: bottom center;">
                     <div class="bg-slate-900 text-white shadow-xl rounded-lg px-2 py-1.5 flex flex-col items-center min-w-[50px] border-2 border-white ring-1 ring-black/5">
                         <span class="text-sm font-black leading-none tracking-tight">${usage}</span>
-                        <span class="text-[9px] font-medium opacity-80 leading-tight mt-0.5 whitespace-nowrap">${buildRight} k-m²</span>
+                        <span class="text-[9px] font-bold text-white leading-tight mt-0.5 whitespace-nowrap">${buildRight} k-m²</span>
                     </div>
                     <div class="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-slate-900 -mt-[1px] filter drop-shadow-sm"></div>
                 </div>
