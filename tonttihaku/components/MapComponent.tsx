@@ -343,6 +343,7 @@ export default function MapComponent() {
         maxBuildRight: '',
         usage: []
     });
+    const [businessUsageOptions, setBusinessUsageOptions] = useState<string[]>([]);
 
     const [showKiinteistot, setShowKiinteistot] = useState(false);
     const [showAsemakaavaInfo, setShowAsemakaavaInfo] = useState(false);

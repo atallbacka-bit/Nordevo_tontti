@@ -43,6 +43,7 @@ interface FilterPanelProps {
     onSalesFiltersChange?: (filters: SalesFilters) => void;
     onBusinessPlotFiltersChange?: (filters: BusinessPlotFilters) => void;
     businessPlotFilters?: BusinessPlotFilters;
+    businessUsageOptions?: string[];
     visiblePlots?: any[];
     availableKunnat?: string[];
 }
@@ -57,6 +58,7 @@ export default function FilterPanel({
     onSalesFiltersChange,
     onBusinessPlotFiltersChange,
     businessPlotFilters = { minArea: '', maxArea: '', minBuildRight: '', maxBuildRight: '', usage: [] },
+    businessUsageOptions = [],
     visiblePlots = [],
     availableKunnat = []
 }: FilterPanelProps) {
