@@ -10,12 +10,14 @@ interface BusinessPlotsLayerProps {
     visible: boolean;
     filters?: BusinessPlotFilters;
     onFiltersChange?: (filters: BusinessPlotFilters) => void;
+    onUsageOptionsLoaded?: (options: string[]) => void;
 }
 
 export default function BusinessPlotsLayer({
     visible,
     filters = { minArea: '', maxArea: '', minBuildRight: '', maxBuildRight: '', usage: [] },
-    onFiltersChange
+    onFiltersChange,
+    onUsageOptionsLoaded
 }: BusinessPlotsLayerProps) {
     const map = useMap();
     const [data, setData] = useState<BusinessPlot[]>([]);
@@ -33,11 +35,14 @@ export default function BusinessPlotsLayer({
                     // Extract unique usage options
                     const usages = Array.from(new Set(plots.map(p => p.kayttotarkoitusmerkinta).filter(Boolean))).sort();
                     setUsageOptions(usages);
+                    if (onUsageOptionsLoaded) {
+                        onUsageOptionsLoaded(usages);
+                    }
                 })
                 .catch(err => console.error("Failed to load business plots", err))
                 .finally(() => setLoading(false));
         }
-    }, [visible, data.length, loading]);
+    }, [visible, data.length, loading, onUsageOptionsLoaded]);
 
     // Filter Logic
     const filteredData = useMemo(() => {

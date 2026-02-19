@@ -1390,14 +1390,49 @@ export default function MapComponent() {
 
                     {/* Custom Analysis Layers - outside Pane for UI visibility */}
                     <SalesAnalysisLayer visible={showSalesAnalysis} />
-                    <BusinessPlotsLayer visible={showBusinessPlots} />
-                </MapContainer>
-                {/* Deployment version trigger: Fix regression v2 */}
-            </div>
+                    <BusinessPlotsLayer
+                        visible={showBusinessPlots}
+                        filters={businessPlotFilters}
+                        onFiltersChange={setBusinessPlotFilters}
+                        onUsageOptionsLoaded={setBusinessUsageOptions}
+                    />
 
-            {/* Modals - rendered outside MapContainer to prevent scroll event capture by Leaflet */}
-            <AddPlotModal
-                isOpen={isAddModalOpen}
+                    {/* Popups (for WMS) */}
+                    {popupInfo && (
+                        <Popup position={[popupInfo.lat, popupInfo.lng]} onClose={() => setPopupInfo(null)}>
+                            <div dangerouslySetInnerHTML={{ __html: popupInfo.content }} />
+                        </Popup>
+                    )}
+                </MapContainer>
+
+                {/* UI Overlay - Filter Panel */}
+                <FilterPanel
+                    onSearch={handleSearch}
+                    onOpacityChange={setWmsOpacity}
+                    onLayerToggle={handleLayerToggle}
+                    onKorkeusOpacityChange={setKorkeusOpacity}
+                    layerStates={{
+                        plots: showPlots,
+                        sales: showSales,
+                        apartments: showApartments,
+                        kiinteistot: showKiinteistot,
+                        asemakaava_info: showAsemakaavaInfo,
+                        korkeus: showKorkeus,
+                        maapera: showMaapera,
+                        melu: showMelu,
+                        edit_mode: editMode,
+                        add_plot_mode: addPlotMode,
+                        sales_analysis: showSalesAnalysis,
+                        business_plots: showBusinessPlots
+                    }}
+                    onPlotFiltersChange={setPlotFilters}
+                    onSalesFiltersChange={setSalesFilters}
+                    onBusinessPlotFiltersChange={setBusinessPlotFilters}
+                    businessPlotFilters={businessPlotFilters}
+                    businessUsageOptions={businessUsageOptions}
+                    visiblePlots={visiblePlots}
+                    availableKunnat={availableKunnat}
+                />
                 onClose={() => {
                     setIsAddModalOpen(false);
                     setEditingPlot(null);
@@ -1409,71 +1444,71 @@ export default function MapComponent() {
                 existingPlot={editingPlot}
             />
 
-            <NoteModal
-                isOpen={isNoteModalOpen}
-                onClose={() => {
-                    setIsNoteModalOpen(false);
-                    setNotePlotId(null);
-                    setNotePlotName('');
-                }}
-                onSave={(note) => {
-                    if (notePlotId) {
-                        addNote(notePlotId, note);
-                    }
-                }}
-                plotName={notePlotName}
-            />
-
-            <MarkSoldModal
-                isOpen={isMarkSoldModalOpen}
-                onClose={() => {
-                    setIsMarkSoldModalOpen(false);
-                    setPlotToMarkSold(null);
-                }}
-                onSave={handleMarkAsSoldSave}
-                plot={plotToMarkSold}
-            />
-
-            <MarkOfferedModal
-                isOpen={isMarkOfferedModalOpen}
-                onClose={() => {
-                    setIsMarkOfferedModalOpen(false);
-                    setPlotToMarkOffered(null);
-                }}
-                onSave={handleMarkAsOfferedSave}
-                plot={plotToMarkOffered}
-            />
-
-            <EditContactInfoModal
-                isOpen={isEditContactModalOpen}
-                onClose={() => { setIsEditContactModalOpen(false); setContactPlot(null); }}
-                onSave={handleContactInfoSave}
-                initialData={contactPlot ? getContactPersons(contactPlot) : []}
-            />
-
-            <LogContactModal
-                isOpen={isLogContactModalOpen}
-                onClose={() => setIsLogContactModalOpen(false)}
-                onSave={handleLogContactSave}
-                contactPersons={logContactPlot ? getContactPersons(logContactPlot) : []}
-                currentAgent="Admin"
-                onManageContacts={() => {
-                    if (logContactPlot) {
-                        setReturnToLogContact(true); // Enable return flow
-                        setIsLogContactModalOpen(false);
-                        openEditContactModal(logContactPlot);
-                    }
-                }}
-                preselectedPersonId={logContactPreselectId}
-            />
-
-            {historyPlot && (
-                <HistoryModal
-                    isOpen={isHistoryModalOpen}
-                    onClose={() => { setIsHistoryModalOpen(false); setHistoryPlot(null); }}
-                    plot={historyPlot}
+                <NoteModal
+                    isOpen={isNoteModalOpen}
+                    onClose={() => {
+                        setIsNoteModalOpen(false);
+                        setNotePlotId(null);
+                        setNotePlotName('');
+                    }}
+                    onSave={(note) => {
+                        if (notePlotId) {
+                            addNote(notePlotId, note);
+                        }
+                    }}
+                    plotName={notePlotName}
                 />
-            )}
-        </div>
-    );
+
+                <MarkSoldModal
+                    isOpen={isMarkSoldModalOpen}
+                    onClose={() => {
+                        setIsMarkSoldModalOpen(false);
+                        setPlotToMarkSold(null);
+                    }}
+                    onSave={handleMarkAsSoldSave}
+                    plot={plotToMarkSold}
+                />
+
+                <MarkOfferedModal
+                    isOpen={isMarkOfferedModalOpen}
+                    onClose={() => {
+                        setIsMarkOfferedModalOpen(false);
+                        setPlotToMarkOffered(null);
+                    }}
+                    onSave={handleMarkAsOfferedSave}
+                    plot={plotToMarkOffered}
+                />
+
+                <EditContactInfoModal
+                    isOpen={isEditContactModalOpen}
+                    onClose={() => { setIsEditContactModalOpen(false); setContactPlot(null); }}
+                    onSave={handleContactInfoSave}
+                    initialData={contactPlot ? getContactPersons(contactPlot) : []}
+                />
+
+                <LogContactModal
+                    isOpen={isLogContactModalOpen}
+                    onClose={() => setIsLogContactModalOpen(false)}
+                    onSave={handleLogContactSave}
+                    contactPersons={logContactPlot ? getContactPersons(logContactPlot) : []}
+                    currentAgent="Admin"
+                    onManageContacts={() => {
+                        if (logContactPlot) {
+                            setReturnToLogContact(true); // Enable return flow
+                            setIsLogContactModalOpen(false);
+                            openEditContactModal(logContactPlot);
+                        }
+                    }}
+                    preselectedPersonId={logContactPreselectId}
+                />
+
+                {historyPlot && (
+                    <HistoryModal
+                        isOpen={isHistoryModalOpen}
+                        onClose={() => { setIsHistoryModalOpen(false); setHistoryPlot(null); }}
+                        plot={historyPlot}
+                    />
+                )}
+            </div>
+            );
 }
