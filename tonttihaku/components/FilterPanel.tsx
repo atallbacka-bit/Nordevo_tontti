@@ -507,20 +507,37 @@ export default function FilterPanel({
                                         layerStates[layer.id] ? 'text-blue-700' : 'text-slate-900'
                                         }`}>{layer.label}</h3>
 
-                                    <div className="relative inline-block w-9 h-5 align-middle select-none">
+                                    <div className="relative inline-block w-9 h-5 align-middle select-none group-hover:scale-105 transition-transform">
                                         <input
                                             type="checkbox"
                                             // @ts-ignore
                                             checked={layerStates[layer.id]}
                                             // @ts-ignore
                                             onChange={(e) => toggleLayer(layer.id, e)}
-                                            className="toggle-checkbox absolute block w-3.5 h-3.5 rounded-full bg-white border-2 appearance-none cursor-pointer translate-x-0.5 top-0.5 transition-transform checked:translate-x-4 checked:border-blue-600"
+                                            className="toggle-checkbox absolute block w-3.5 h-3.5 rounded-full bg-white border-2 appearance-none cursor-pointer translate-x-0.5 top-0.5 transition-transform checked:translate-x-4 checked:border-blue-600 z-10"
                                         />
-                                        <label className={`toggle-label block overflow-hidden h-5 rounded-full cursor-pointer transition-colors ${
-                                            // @ts-ignore
-                                            layerStates[layer.id] ? 'bg-blue-600' : 'bg-slate-300'
-                                            }`}></label>
+                                        <label
+                                            onClick={(e) => {
+                                                // Programmatically toggle check if label clicked
+                                                // This is just a visual background, input handles change
+                                            }}
+                                            className={`toggle-label block overflow-hidden h-5 rounded-full cursor-pointer transition-colors ${
+                                                // @ts-ignore
+                                                layerStates[layer.id] ? 'bg-blue-600' : 'bg-slate-300'
+                                                }`}
+                                        ></label>
                                     </div>
+                                    {/* Overlay for hit area */}
+                                    <label className="absolute inset-0 cursor-pointer z-0">
+                                        <input
+                                            type="checkbox"
+                                            // @ts-ignore
+                                            checked={layerStates[layer.id]}
+                                            // @ts-ignore
+                                            onChange={(e) => toggleLayer(layer.id, e)}
+                                            className="hidden"
+                                        />
+                                    </label>
                                 </div>
                                 <p className="text-xs text-slate-500">{layer.desc}</p>
 
