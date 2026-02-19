@@ -128,8 +128,11 @@ export default function SalesDataModal({ isOpen, onClose, data }: SalesDataModal
                 <div className="p-5 border-b border-slate-100 flex justify-between items-start bg-slate-50/50">
                     <div>
                         <h2 className="text-xl font-bold text-slate-900">{address}</h2>
-                        <p className="text-slate-500 font-medium">{city}</p>
+                        <p className="text-slate-500 font-medium">{city} | {getStr('D')}</p>
                         <div className="flex flex-wrap gap-4 mt-2 text-xs text-slate-600">
+                            <span className="font-semibold" title="Rakennuttaja">🏗️ {getStr('F')}</span>
+                            <span title="Valmistumisvuosi">📅 {getStr('G')}</span>
+                            <span title="Tontin hallintamuoto">📜 {getStr('I') === 'O' ? 'Oma tontti' : getStr('I') === 'V' ? 'Vuokratontti' : getStr('I')}</span>
                             <span className="bg-blue-50 text-blue-700 px-2 py-1 rounded">Keskiarvo: {avgArea.toFixed(1)} m²</span>
                             <span className="bg-green-50 text-green-700 px-2 py-1 rounded">Hinnan peitto: {priceCoverage}%</span>
                         </div>
