@@ -5,6 +5,7 @@ import { useMap, Marker } from 'react-leaflet';
 import L from 'leaflet';
 import * as XLSX from 'xlsx';
 import SalesDataModal from './SalesDataModal';
+import { createPortal } from 'react-dom';
 
 interface SalesAnalysisLayerProps {
     visible: boolean;
@@ -20,12 +21,24 @@ export default function SalesAnalysisLayer({ visible }: SalesAnalysisLayerProps)
     const [loading, setLoading] = useState(false);
     const [progress, setProgress] = useState({ current: 0, total: 0, text: '' });
     const [selectedBuilding, setSelectedBuilding] = useState<any>(null);
-    const [cutoffYear, setCutoffYear] = useState<number>(2025);
+    const [selectedYear, setSelectedYear] = useState<string>('');
     const [isLoading, setIsLoading] = useState(true);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Load cache on mount
     const [geoCache, setGeoCache] = useState<Record<string, { lat: number, lng: number }>>({});
+
+    // Portal setup
+    const [filterContainer, setFilterContainer] = useState<HTMLElement | null>(null);
+    useEffect(() => {
+        if (visible) {
+            setTimeout(() => {
+                setFilterContainer(document.getElementById('sales-analysis-filters-container'));
+            }, 0);
+        } else {
+            setFilterContainer(null);
+        }
+    }, [visible]);
 
     // Fetch existing data on mount
     useEffect(() => {
@@ -249,80 +262,86 @@ export default function SalesAnalysisLayer({ visible }: SalesAnalysisLayerProps)
         const soldUnits = parseFloat(item['S']) || 0;
         const unsoldTotal = Math.max(0, totalUnits - soldUnits);
 
-        return finishedYear > cutoffYear || unsoldTotal > 0;
+        if (selectedYear) {
+            const parsedYear = parseInt(selectedYear);
+            if (!isNaN(parsedYear)) {
+                return finishedYear >= parsedYear;
+            }
+        }
+
+        return true;
     });
 
-    return (
-        <>
-            {/* Control Panel */}
-            <div className="leaflet-top leaflet-right" style={{ top: '80px', right: '10px', pointerEvents: 'auto' }}>
-                <div className="bg-white p-4 rounded shadow-lg max-w-sm border border-slate-200">
-                    <h3 className="font-bold mb-3 text-slate-800">Myyntianalyysi</h3>
+    const controlPanel = (
+        <div className="space-y-3">
+            {/* Year Input */}
+            <div>
+                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Valmistumisvuosi</label>
+                <div className="flex items-center gap-2">
+                    <input
+                        type="number"
+                        placeholder="Esim. 2026"
+                        value={selectedYear}
+                        onChange={(e) => setSelectedYear(e.target.value)}
+                        className="w-full px-2 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                    />
+                </div>
+            </div>
 
-                    {/* Cutoff Year Input */}
-                    <div className="mb-4">
-                        <label className="block text-xs font-semibold mb-1 text-slate-600">Valmistumisvuosi (raja)</label>
-                        <div className="flex items-center gap-2">
-                            <input
-                                type="number"
-                                value={cutoffYear}
-                                onChange={(e) => setCutoffYear(parseInt(e.target.value) || 2025)}
-                                className="w-20 px-2 py-1 text-sm border rounded bg-slate-50"
-                            />
-                            <span className="text-xs text-slate-400">&gt; Näytetään uudemmat</span>
-                        </div>
-                    </div>
+            <div className="pt-2 border-t border-slate-100">
+                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">
+                    {isLoading ? 'Ladataan...' : 'Päivitä tietokanta (Excel)'}
+                </label>
+                <input
+                    type="file"
+                    accept=".xlsx, .xls"
+                    onChange={handleFileUpload}
+                    disabled={loading || isLoading}
+                    className="block w-full text-xs text-slate-500
+                    file:mr-2 file:py-1 file:px-2
+                    file:rounded file:border-0
+                    file:text-xs file:font-semibold
+                    file:bg-violet-50 file:text-violet-700
+                    hover:file:bg-violet-100 disabled:opacity-50
+                "
+                />
+            </div>
 
-                    <div className="mb-3">
-                        <label className="block text-xs font-semibold mb-1 text-slate-600">
-                            {isLoading ? 'Ladataan tietokantaa...' : 'Päivitä tietokanta (Excel)'}
-                        </label>
-                        <input
-                            type="file"
-                            accept=".xlsx, .xls"
-                            onChange={handleFileUpload}
-                            disabled={loading || isLoading}
-                            className="block w-full text-xs text-slate-500
-                                file:mr-4 file:py-2 file:px-4
-                                file:rounded-full file:border-0
-                                file:text-xs file:font-semibold
-                                file:bg-violet-50 file:text-violet-700
-                                hover:file:bg-violet-100 disabled:opacity-50
-                            "
-                        />
-                    </div>
-
-                    {progress.text ? (
-                        <div className="mt-2">
-                            <div className="text-xs font-medium text-blue-600 mb-1">{progress.text}</div>
-                            {progress.total > 0 && (
-                                <div className="w-full bg-gray-200 rounded-full h-2">
-                                    <div
-                                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                                        style={{ width: `${(progress.current / progress.total) * 100}%` }}
-                                    ></div>
-                                </div>
-                            )}
-                        </div>
-                    ) : (
-                        <div className="mt-2 text-xs text-green-600 font-medium flex items-center gap-1">
-                            {!isLoading && processedData.length > 0 && (
-                                <>
-                                    <span>✓ {displayData.length} näkyvissä</span>
-                                    <span className="text-slate-400">({processedData.length} tietokannassa)</span>
-                                </>
-                            )}
-                        </div>
-                    )}
-
-                    {!isLoading && processedData.length > 0 && (
-                        <div className="mt-2 flex items-center gap-3 text-[10px] text-slate-500 border-t pt-2">
-                            <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-600"></span> Omistus</div>
-                            <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-600"></span> Vuokra</div>
+            {progress.text ? (
+                <div className="mt-2">
+                    <div className="text-[10px] font-medium text-blue-600 mb-1">{progress.text}</div>
+                    {progress.total > 0 && (
+                        <div className="w-full bg-gray-200 rounded-full h-1.5">
+                            <div
+                                className="bg-blue-600 h-1.5 rounded-full transition-all duration-300"
+                                style={{ width: `${(progress.current / progress.total) * 100}%` }}
+                            ></div>
                         </div>
                     )}
                 </div>
-            </div>
+            ) : (
+                <div className="mt-1 text-[10px] text-green-600 font-medium flex items-center justify-between">
+                    {!isLoading && processedData.length > 0 && (
+                        <>
+                            <span>✓ {displayData.length} näkyvissä</span>
+                            <span className="text-slate-400">({processedData.length} yht)</span>
+                        </>
+                    )}
+                </div>
+            )}
+
+            {!isLoading && processedData.length > 0 && (
+                <div className="mt-2 flex items-center gap-3 text-[10px] text-slate-500 pt-1">
+                    <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-600"></span> Omistus</div>
+                    <div className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-red-600"></span> Vuokra</div>
+                </div>
+            )}
+        </div>
+    );
+
+    return (
+        <>
+            {filterContainer && createPortal(controlPanel, filterContainer)}
 
             {/* Markers */}
             {displayData.map((item, idx) => {

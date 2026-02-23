@@ -526,7 +526,7 @@ export default function FilterPanel({
 
                         {/* Layer Toggle Component */}
                         {[
-                            { id: 'sales_analysis', label: 'Myyntianalyysi', desc: 'Analysoi myyntidataa Excelistä' },
+                            { id: 'sales_analysis', label: 'Uudiskohteiden myyntidata (STH)', desc: 'Analysoi myyntidataa Excelistä' },
                             { id: 'business_plots', label: 'Vapaat yritystontit', desc: 'Helsingin kaupungin vapaat tontit' },
                             { id: 'kiinteistot', label: 'Kiinteistöt', desc: 'Kiinteistörajat ja -tunnukset' },
                             { id: 'asemakaava_info', label: 'Asemakaavatiedot', desc: 'Klikkaa karttaa nähdäksesi tiedot' },
@@ -648,6 +648,12 @@ export default function FilterPanel({
                                                 />
                                             </div>
                                         </div>
+                                    </div>
+                                )}
+
+                                {/* Sales Analysis Portal Container */}
+                                {layer.id === 'sales_analysis' && layerStates.sales_analysis && (
+                                    <div id="sales-analysis-filters-container" className="mt-3 pt-3 border-t border-slate-100 space-y-3 animate-in fade-in duration-300 relative z-30">
                                     </div>
                                 )}
 
