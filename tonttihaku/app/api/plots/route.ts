@@ -64,7 +64,8 @@ export async function POST(req: Request) {
                 contactPhone: plot.contactPhone || '',
                 contactEmail: plot.contactEmail || '',
                 contacts: plot.contacts || '[]',
-                contactPersons: plot.contactPersons || '[]'
+                contactPersons: plot.contactPersons || '[]',
+                priority: Number(plot.priority) || 0
             });
 
             if (error) throw error;
@@ -118,6 +119,7 @@ export async function POST(req: Request) {
                     contactEmail: updated.contactEmail,
                     contacts: updated.contacts,
                     contactPersons: updated.contactPersons,
+                    priority: Number(updated.priority) || 0,
                 })
                 .eq('id', id);
 

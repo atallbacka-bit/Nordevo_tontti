@@ -42,7 +42,8 @@ export default function AddPlotModal({
         // Contact fields
         contactPerson: '',
         contactPhone: '',
-        contactEmail: ''
+        contactEmail: '',
+        priority: 0 // New Priority Field
     });
 
     // New state for initial contact log
@@ -114,7 +115,8 @@ export default function AddPlotModal({
                     finalPrice: existingPlot.finalPrice?.toString() || '',
                     soldDate: existingPlot.soldDate || new Date().toISOString().split('T')[0],
                     // Legacy fields cleared from form data as we use contactPersons state
-                    contactPerson: '', contactPhone: '', contactEmail: ''
+                    contactPerson: '', contactPhone: '', contactEmail: '',
+                    priority: existingPlot.priority || 0
                 });
                 setZonings(parsedZonings);
             } else {
@@ -124,7 +126,8 @@ export default function AddPlotModal({
                     desc: '', seller: '', status: 'Vapaa',
                     deadline: '', address: '', kunta: 'Helsinki', kiinteistotunnus: '', createdBy: '', updatedBy: '',
                     buyer: '', finalPrice: '', soldDate: new Date().toISOString().split('T')[0],
-                    contactPerson: '', contactPhone: '', contactEmail: ''
+                    contactPerson: '', contactPhone: '', contactEmail: '',
+                    priority: 0
                 });
                 setZonings([{ type: 'AK', buildingRight: 0 }]);
                 setContactPersons([{ id: '1', name: '', phone: '', email: '' }]);
@@ -160,7 +163,8 @@ export default function AddPlotModal({
             // Maintain legacy for compatibility if needed, but primary is now contactPersons
             contactPerson: validContacts[0]?.name || '',
             contactPhone: validContacts[0]?.phone || '',
-            contactEmail: validContacts[0]?.email || ''
+            contactEmail: validContacts[0]?.email || '',
+            priority: Number(formData.priority) || 0
         };
 
         // Handle initial contact log
@@ -335,6 +339,18 @@ export default function AddPlotModal({
                         <div className="col-span-2">
                             <label className="block text-xs font-semibold text-gray-700 uppercase">Hinta-arvio (€)</label>
                             <input name="priceEst" type="number" value={formData.priceEst} onChange={handleChange} className="w-full border rounded p-2 text-sm" placeholder="2000000" />
+                        </div>
+
+                        {/* Priority field - essential */}
+                        <div className="col-span-2">
+                            <label className="block text-xs font-semibold text-gray-700 uppercase">Prioriteetti</label>
+                            <select name="priority" value={formData.priority} onChange={handleChange} className="w-full border rounded p-2 text-sm bg-white">
+                                <option value={0}>- Ei luokiteltu -</option>
+                                <option value={1}>1 - Korkea prioriteetti</option>
+                                <option value={2}>2 - Keskikorkea prioriteetti</option>
+                                <option value={3}>3 - Matala prioriteetti</option>
+                            </select>
+                            <p className="text-xs text-gray-500 mt-1">1 = korkea, 3 = matala</p>
                         </div>
 
                         {/* Description - essential */}

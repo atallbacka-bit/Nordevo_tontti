@@ -79,6 +79,7 @@ export default function FilterPanel({
     const [plotBRMax, setPlotBRMax] = useState('');
     const [plotStatus, setPlotStatus] = useState('Vapaa,Kilpailussa');
     const [plotKunnat, setPlotKunnat] = useState<string[]>([]);
+    const [plotPriorities, setPlotPriorities] = useState<number[]>([]);
     const [kuntaDropdownOpen, setKuntaDropdownOpen] = useState(false);
 
     // Sales filters state
@@ -87,13 +88,14 @@ export default function FilterPanel({
     const [salesBRMax, setSalesBRMax] = useState('');
 
     // Update parent when plot filters change
-    const updatePlotFilters = (zonings: string[], brMin: string, brMax: string, status: string, kunnat: string[]) => {
+    const updatePlotFilters = (zonings: string[], brMin: string, brMax: string, status: string, kunnat: string[], priorities: number[]) => {
         onPlotFiltersChange?.({
             zoningTypes: zonings,
             buildingRightMin: brMin,
             buildingRightMax: brMax,
             status: status,
-            kunnat: kunnat
+            kunnat: kunnat,
+            priorities: priorities
         });
     };
 
@@ -108,7 +110,7 @@ export default function FilterPanel({
 
     // Sync initial state on mount
     useEffect(() => {
-        updatePlotFilters(plotZoningTypes, plotBRMin, plotBRMax, plotStatus, plotKunnat);
+        updatePlotFilters(plotZoningTypes, plotBRMin, plotBRMax, plotStatus, plotKunnat, plotPriorities);
     }, []);
 
     // Auto-select new kunnat when they appear in the data
@@ -121,10 +123,21 @@ export default function FilterPanel({
                 // Also remove any that no longer exist in available
                 const filtered = updatedKunnat.filter(k => availableKunnat.includes(k));
                 setPlotKunnat(filtered);
-                updatePlotFilters(plotZoningTypes, plotBRMin, plotBRMax, plotStatus, filtered);
+                updatePlotFilters(plotZoningTypes, plotBRMin, plotBRMax, plotStatus, filtered, plotPriorities);
             }
         }
     }, [availableKunnat]);
+
+    const togglePlotPriority = (priority: number) => {
+        let newPriorities: number[];
+        if (plotPriorities.includes(priority)) {
+            newPriorities = plotPriorities.filter(p => p !== priority);
+        } else {
+            newPriorities = [...plotPriorities, priority];
+        }
+        setPlotPriorities(newPriorities);
+        updatePlotFilters(plotZoningTypes, plotBRMin, plotBRMax, plotStatus, plotKunnat, newPriorities);
+    };
 
     const togglePlotZoning = (code: string) => {
         let newZonings: string[];
@@ -147,7 +160,7 @@ export default function FilterPanel({
         // For now, allow empty or maybe revert to all? Let's allow empty as standard toggle behavior.
 
         setPlotZoningTypes(newZonings);
-        updatePlotFilters(newZonings, plotBRMin, plotBRMax, plotStatus, plotKunnat);
+        updatePlotFilters(newZonings, plotBRMin, plotBRMax, plotStatus, plotKunnat, plotPriorities);
     };
 
     const togglePlotKunta = (value: string) => {
@@ -158,14 +171,14 @@ export default function FilterPanel({
             newKunnat = [...plotKunnat, value];
         }
         setPlotKunnat(newKunnat);
-        updatePlotFilters(plotZoningTypes, plotBRMin, plotBRMax, plotStatus, newKunnat);
+        updatePlotFilters(plotZoningTypes, plotBRMin, plotBRMax, plotStatus, newKunnat, plotPriorities);
     };
 
     const toggleAllKunnat = () => {
         const allSelected = availableKunnat.every(k => plotKunnat.includes(k));
         const newKunnat = allSelected ? [] : [...availableKunnat];
         setPlotKunnat(newKunnat);
-        updatePlotFilters(plotZoningTypes, plotBRMin, plotBRMax, plotStatus, newKunnat);
+        updatePlotFilters(plotZoningTypes, plotBRMin, plotBRMax, plotStatus, newKunnat, plotPriorities);
     };
 
     const toggleSalesZoning = (code: string) => {
@@ -309,7 +322,7 @@ export default function FilterPanel({
                                                             }
                                                             const statusStr = newStatus.join(',');
                                                             setPlotStatus(statusStr);
-                                                            updatePlotFilters(plotZoningTypes, plotBRMin, plotBRMax, statusStr, plotKunnat);
+                                                            updatePlotFilters(plotZoningTypes, plotBRMin, plotBRMax, statusStr, plotKunnat, plotPriorities);
                                                         }}
                                                         className="hidden"
                                                     />
@@ -383,6 +396,26 @@ export default function FilterPanel({
                                         </div>
                                     </div>
 
+                                    {/* Priority Filter */}
+                                    <div>
+                                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Prioriteetti</label>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {[1, 2, 3, 0].map(p => (
+                                                <button
+                                                    key={p}
+                                                    type="button"
+                                                    onClick={() => togglePlotPriority(p)}
+                                                    className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all border ${plotPriorities.includes(p)
+                                                        ? 'bg-slate-800 text-white border-slate-800 shadow-sm'
+                                                        : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                                                        }`}
+                                                >
+                                                    {p === 0 ? '-' : p}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
                                     {/* Building Right Filter */}
                                     <div>
                                         <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Rakennusoikeus (k-m²)</label>
@@ -394,7 +427,7 @@ export default function FilterPanel({
                                                     value={plotBRMin}
                                                     onChange={(e) => {
                                                         setPlotBRMin(e.target.value);
-                                                        updatePlotFilters(plotZoningTypes, e.target.value, plotBRMax, plotStatus, plotKunnat);
+                                                        updatePlotFilters(plotZoningTypes, e.target.value, plotBRMax, plotStatus, plotKunnat, plotPriorities);
                                                     }}
                                                     className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
                                                 />
@@ -407,7 +440,7 @@ export default function FilterPanel({
                                                     value={plotBRMax}
                                                     onChange={(e) => {
                                                         setPlotBRMax(e.target.value);
-                                                        updatePlotFilters(plotZoningTypes, plotBRMin, e.target.value, plotStatus, plotKunnat);
+                                                        updatePlotFilters(plotZoningTypes, plotBRMin, e.target.value, plotStatus, plotKunnat, plotPriorities);
                                                     }}
                                                     className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
                                                 />
@@ -560,8 +593,8 @@ export default function FilterPanel({
                                                             onBusinessPlotFiltersChange?.({ ...businessPlotFilters, usage: newUsage });
                                                         }}
                                                         className={`px-2.5 py-1 text-xs font-medium rounded-md border transition-all ${businessPlotFilters.usage?.includes(opt)
-                                                                ? 'bg-slate-800 text-white border-slate-800 shadow-sm'
-                                                                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                                                            ? 'bg-slate-800 text-white border-slate-800 shadow-sm'
+                                                            : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
                                                             }`}
                                                     >
                                                         {opt}

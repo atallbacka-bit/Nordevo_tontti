@@ -68,6 +68,9 @@ export interface PlotData {
     // New Contact Fields
     contactPersons?: string; // JSON string of ContactPerson[]
     contacts?: string; // JSON string of ContactLog[]
+
+    // Priority Rating (1-3, 0 means unrated)
+    priority?: number;
 }
 
 export interface ContactLog {
@@ -87,6 +90,7 @@ export interface PlotFilters {
     buildingRightMax: string;
     status: string;
     kunnat: string[];
+    priorities: number[];
 }
 
 export interface SalesFilters {

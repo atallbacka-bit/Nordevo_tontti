@@ -325,7 +325,8 @@ export default function MapComponent() {
         buildingRightMin: '',
         buildingRightMax: '',
         status: 'Vapaa,Kilpailussa',
-        kunnat: []
+        kunnat: [],
+        priorities: []
     });
 
     // Sales filters state
@@ -450,6 +451,12 @@ export default function MapComponent() {
             if (plotFilters.kunnat && plotFilters.kunnat.length > 0) {
                 const plotKunta = plot.kunta || 'Helsinki';
                 if (!plotFilters.kunnat.includes(plotKunta)) return false;
+            }
+
+            // Apply priority filter
+            if (plotFilters.priorities && plotFilters.priorities.length > 0) {
+                const plotPriority = plot.priority || 0;
+                if (!plotFilters.priorities.includes(plotPriority)) return false;
             }
 
             return true;
