@@ -352,6 +352,10 @@ export default function MapComponent() {
     const [showAsemakaavaInfo, setShowAsemakaavaInfo] = useState(false);
     const [popupInfo, setPopupInfo] = useState<{ lat: number, lng: number, content: string } | null>(null);
 
+    // Plot search: marker refs for programmatic popup opening
+    const markerRefs = useRef<Map<string, L.Marker>>(new Map());
+    const [selectedPlotId, setSelectedPlotId] = useState<string | null>(null);
+
     // Sales State
     const [showSales, setShowSales] = useState(false);
     const [showApartments, setShowApartments] = useState(false);
@@ -410,6 +414,9 @@ export default function MapComponent() {
         console.log('DEBUG: plotFilters:', plotFilters);
 
         return plotsData.filter((plot) => {
+            // Always show the specifically searched plot regardless of filters
+            if (selectedPlotId && plot.id === selectedPlotId) return true;
+
             // Apply status filter
             // plotFilters.status contains comma-separated values like "Vapaa,Kilpailussa"
             if (plotFilters.status) {
@@ -458,7 +465,40 @@ export default function MapComponent() {
 
             return true;
         });
-    }, [plotsData, plotFilters]);
+    }, [plotsData, plotFilters, selectedPlotId]);
+
+    // Handle plot selection from search
+    const handlePlotSelect = (plot: PlotData | null) => {
+        if (!plot) {
+            setSelectedPlotId(null);
+            return;
+        }
+        // Ensure plots layer is visible
+        if (!showPlots) setShowPlots(true);
+        setSelectedPlotId(plot.id);
+    };
+
+    // Helper component to fly to a selected plot and open its popup
+    function FlyToPlot() {
+        const map = useMap();
+        useEffect(() => {
+            if (!selectedPlotId) return;
+            const plot = plotsData.find(p => p.id === selectedPlotId);
+            if (!plot || !plot.lat || !plot.lng) {
+                setSelectedPlotId(null);
+                return;
+            }
+            map.flyTo([plot.lat, plot.lng], 16, { duration: 0.8 });
+            // Open popup after fly animation completes
+            const timer = setTimeout(() => {
+                const marker = markerRefs.current.get(selectedPlotId);
+                if (marker) marker.openPopup();
+                // We keep selectedPlotId active to override filters until user clears the search
+            }, 900);
+            return () => clearTimeout(timer);
+        }, [selectedPlotId, map]);
+        return null;
+    }
 
     // Save plot (add or update)
     const savePlot = async (plot: Partial<PlotData>, action: 'add' | 'update') => {
@@ -841,10 +881,13 @@ export default function MapComponent() {
                 businessUsageOptions={businessUsageOptions}
                 visiblePlots={visiblePlots}
                 availableKunnat={availableKunnat}
+                plotsData={plotsData}
+                onPlotSelect={handlePlotSelect}
             />
             <div className="flex-grow h-full relative z-0">
                 <MapContainer center={[60.25, 24.8]} zoom={10} style={{ height: '100%', width: '100%' }}>
                     <MapEvents />
+                    <FlyToPlot />
                     {popupInfo && (
                         <Popup
                             position={[popupInfo.lat, popupInfo.lng]}
@@ -1075,6 +1118,9 @@ export default function MapComponent() {
                             <Marker
                                 key={plot.id || i}
                                 position={[plot.lat, plot.lng]}
+                                ref={(ref) => {
+                                    if (ref && plot.id) markerRefs.current.set(plot.id, ref);
+                                }}
                                 icon={L.divIcon({
                                     className: 'custom-plot-icon',
                                     html: markerHtml,

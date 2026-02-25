@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { ZONING_TYPES, STATUS_OPTIONS } from '@/lib/constants';
-import { PlotFilters, SalesFilters, BusinessPlotFilters } from '@/types';
+import { PlotData, PlotFilters, SalesFilters, BusinessPlotFilters } from '@/types';
 
 interface FilterState {
     laskvar_ak_min: string;
@@ -46,6 +46,8 @@ interface FilterPanelProps {
     businessUsageOptions?: string[];
     visiblePlots?: any[];
     availableKunnat?: string[];
+    plotsData?: PlotData[];
+    onPlotSelect?: (plot: PlotData | null) => void;
 }
 
 export default function FilterPanel({
@@ -60,7 +62,9 @@ export default function FilterPanel({
     businessPlotFilters = { minArea: '', maxArea: '', minBuildRight: '', maxBuildRight: '', usage: [] },
     businessUsageOptions = [],
     visiblePlots = [],
-    availableKunnat = []
+    availableKunnat = [],
+    plotsData = [],
+    onPlotSelect
 }: FilterPanelProps) {
     const [activeTab, setActiveTab] = useState<'search' | 'analysis'>('search');
     const [filters, setFilters] = useState<FilterState>({
@@ -81,6 +85,48 @@ export default function FilterPanel({
     const [plotKunnat, setPlotKunnat] = useState<string[]>([]);
     const [plotPriorities, setPlotPriorities] = useState<number[]>([]);
     const [kuntaDropdownOpen, setKuntaDropdownOpen] = useState(false);
+
+    // Plot search state
+    const [searchQuery, setSearchQuery] = useState('');
+    const [searchOpen, setSearchOpen] = useState(false);
+    const searchRef = useRef<HTMLDivElement>(null);
+
+    // Close search dropdown on outside click
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+                setSearchOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    // Compute search results
+    const searchResults = useMemo(() => {
+        if (!searchQuery || searchQuery.length < 2) return [];
+        const q = searchQuery.toLowerCase();
+        return plotsData.filter(plot => {
+            if (plot.name?.toLowerCase().includes(q)) return true;
+            if (plot.address?.toLowerCase().includes(q)) return true;
+            if (plot.seller?.toLowerCase().includes(q)) return true;
+            if (plot.kunta?.toLowerCase().includes(q)) return true;
+            if (plot.kiinteistotunnus?.toLowerCase().includes(q)) return true;
+            if (plot.contactPerson?.toLowerCase().includes(q)) return true;
+            // Search in contactPersons JSON
+            if (plot.contactPersons) {
+                try {
+                    const persons = typeof plot.contactPersons === 'string' ? JSON.parse(plot.contactPersons) : plot.contactPersons;
+                    if (Array.isArray(persons) && persons.some((p: any) =>
+                        p.name?.toLowerCase().includes(q) ||
+                        p.phone?.toLowerCase().includes(q) ||
+                        p.email?.toLowerCase().includes(q)
+                    )) return true;
+                } catch { }
+            }
+            return false;
+        }).slice(0, 10);
+    }, [searchQuery, plotsData]);
 
     // Sales filters state
     const [salesZoningTypes, setSalesZoningTypes] = useState<string[]>([]);
@@ -299,6 +345,64 @@ export default function FilterPanel({
 
                             {layerStates.plots && (
                                 <div className="mt-4 space-y-5 animate-in fade-in slide-in-from-top-2 duration-300">
+                                    {/* Plot Search Bar */}
+                                    <div ref={searchRef} className="relative">
+                                        <div className="relative">
+                                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none">🔍</span>
+                                            <input
+                                                type="text"
+                                                placeholder="Etsi tontteja..."
+                                                value={searchQuery}
+                                                onChange={(e) => {
+                                                    setSearchQuery(e.target.value);
+                                                    setSearchOpen(e.target.value.length >= 2);
+                                                    // Any edit to the text clears the active selection bypass
+                                                    onPlotSelect?.(null);
+                                                }}
+                                                onFocus={() => { if (searchQuery.length >= 2) setSearchOpen(true); }}
+                                                onKeyDown={(e) => { if (e.key === 'Escape') { setSearchOpen(false); (e.target as HTMLInputElement).blur(); } }}
+                                                className="w-full pl-9 pr-8 py-2.5 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400"
+                                            />
+                                            {searchQuery && (
+                                                <button
+                                                    onClick={() => { setSearchQuery(''); setSearchOpen(false); onPlotSelect?.(null); }}
+                                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-sm"
+                                                >✕</button>
+                                            )}
+                                        </div>
+                                        {searchOpen && searchResults.length > 0 && (
+                                            <div className="absolute z-50 mt-1 w-full bg-white border border-slate-200 rounded-xl shadow-lg py-1 max-h-72 overflow-y-auto">
+                                                {searchResults.map(plot => (
+                                                    <button
+                                                        key={plot.id}
+                                                        onClick={() => {
+                                                            onPlotSelect?.(plot);
+                                                            setSearchQuery(plot.name || '');
+                                                            setSearchOpen(false);
+                                                        }}
+                                                        className="w-full text-left px-3 py-2.5 hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-b-0"
+                                                    >
+                                                        <div className="flex items-center justify-between">
+                                                            <span className="text-sm font-semibold text-slate-800 truncate">{plot.name}</span>
+                                                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0 ml-2 ${plot.status === 'Vapaa' ? 'bg-blue-50 text-blue-600' :
+                                                                plot.status === 'Kilpailussa' ? 'bg-red-50 text-red-600' :
+                                                                    plot.status === 'Tarjottu' ? 'bg-green-50 text-green-600' :
+                                                                        plot.status === 'Pidossa' ? 'bg-purple-50 text-purple-600' :
+                                                                            plot.status === 'Mennyt' ? 'bg-gray-100 text-gray-500' :
+                                                                                'bg-slate-100 text-slate-500'
+                                                                }`}>{plot.status}</span>
+                                                        </div>
+                                                        {plot.address && <div className="text-xs text-slate-500 truncate">{plot.address}</div>}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                        {searchOpen && searchQuery.length >= 2 && searchResults.length === 0 && (
+                                            <div className="absolute z-50 mt-1 w-full bg-white border border-slate-200 rounded-xl shadow-lg py-3 px-4 text-sm text-slate-400 text-center">
+                                                Ei tuloksia haulle &ldquo;{searchQuery}&rdquo;
+                                            </div>
+                                        )}
+                                    </div>
                                     {/* Status Filter */}
                                     <div>
                                         <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Tila</label>
