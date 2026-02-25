@@ -1,5 +1,6 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '@/components/AuthProvider';
 
 interface NoteModalProps {
     isOpen: boolean;
@@ -9,8 +10,16 @@ interface NoteModalProps {
 }
 
 export default function NoteModal({ isOpen, onClose, onSave, plotName }: NoteModalProps) {
+    const { username } = useAuth();
     const [text, setText] = useState('');
     const [author, setAuthor] = useState('');
+
+    useEffect(() => {
+        if (isOpen) {
+            setText('');
+            setAuthor(username || '');
+        }
+    }, [isOpen, username]);
 
     if (!isOpen) return null;
 

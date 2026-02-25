@@ -1,12 +1,8 @@
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseAdmin } from '@/lib/supabase';
 import { NextResponse } from 'next/server';
 
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
-
 export async function GET() {
+    const supabase = getSupabaseAdmin();
     try {
         const { data, error } = await supabase
             .from('sales_analysis_data')
@@ -22,6 +18,7 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
+    const supabase = getSupabaseAdmin();
     try {
         const body = await req.json();
         const { action, data } = body;

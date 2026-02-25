@@ -1,11 +1,13 @@
 "use client";
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '@/components/AuthProvider';
+import { PlotData, MarkOfferedData } from '@/types';
 
 interface MarkOfferedModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSave: (offerData: any) => void;
-    plot: any;
+    onSave: (offerData: MarkOfferedData) => void;
+    plot: PlotData | null;
 }
 
 export default function MarkOfferedModal({
@@ -14,6 +16,7 @@ export default function MarkOfferedModal({
     onSave,
     plot
 }: MarkOfferedModalProps) {
+    const { username } = useAuth();
     const [formData, setFormData] = useState({
         offerPrice: '',
         offerDate: new Date().toISOString().split('T')[0],
@@ -27,7 +30,7 @@ export default function MarkOfferedModal({
                 offerPrice: '',
                 offerDate: new Date().toISOString().split('T')[0],
                 desc: '',
-                updatedBy: ''
+                updatedBy: username || ''
             });
         }
     }, [isOpen]);

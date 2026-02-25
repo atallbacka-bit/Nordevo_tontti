@@ -1,11 +1,13 @@
 "use client";
 import React, { useState, useEffect } from 'react';
+import { useAuth } from '@/components/AuthProvider';
+import { PlotData, MarkSoldData } from '@/types';
 
 interface MarkSoldModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSave: (salesData: any) => void;
-    plot: any;
+    onSave: (salesData: MarkSoldData) => void;
+    plot: PlotData | null;
 }
 
 export default function MarkSoldModal({
@@ -14,6 +16,7 @@ export default function MarkSoldModal({
     onSave,
     plot
 }: MarkSoldModalProps) {
+    const { username } = useAuth();
     const [formData, setFormData] = useState<{ buyer: string; finalPrice: string; pricePerRight: string; soldDate: string; desc: string; updatedBy: string }>({
         buyer: '',
         finalPrice: '',
@@ -31,10 +34,10 @@ export default function MarkSoldModal({
                 pricePerRight: '',
                 soldDate: new Date().toISOString().split('T')[0],
                 desc: '',
-                updatedBy: ''
+                updatedBy: username || ''
             });
         }
-    }, [isOpen]);
+    }, [isOpen, username]);
 
     if (!isOpen || !plot) return null;
 

@@ -25,7 +25,8 @@ import AddPlotModal from './AddPlotModal';
 import AddPastPlotModal from './AddPastPlotModal';
 import BusinessPlotsLayer from './BusinessPlotsLayer';
 import { ZONING_TYPES, getZoningColor, getPlotColor, STATUS_OPTIONS } from '@/lib/constants';
-import { PlotFilters, SalesFilters, BusinessPlotFilters } from '@/types';
+import { PlotData, PlotFilters, SalesFilters, BusinessPlotFilters, MarkSoldData, MarkOfferedData, ContactLog } from '@/types';
+import * as api from '@/lib/api';
 import MarkSoldModal from './MarkSoldModal';
 import NoteModal from './NoteModal';
 import MarkOfferedModal from './MarkOfferedModal';
@@ -34,18 +35,18 @@ import LogContactModal from './LogContactModal';
 import HistoryModal from './HistoryModal';
 
 // Parse zonings from JSON string or legacy format
-function parseZonings(plot: any): { type: string, buildingRight: number }[] {
+function parseZonings(plot: PlotData): { type: string, buildingRight: number }[] {
     if (plot.zonings) {
         try {
             const parsed = typeof plot.zonings === 'string' ? JSON.parse(plot.zonings) : plot.zonings;
             if (Array.isArray(parsed)) return parsed;
         } catch { }
     }
-    return [{ type: plot.zoning?.split(' ')[0] || 'AK', buildingRight: plot.buildingRight || 0 }];
+    return [{ type: 'AK', buildingRight: plot.buildingRight || 0 }];
 }
 
 // Parse notes from JSON string
-function parseNotes(plot: any): { id: string, text: string, author: string, timestamp: string }[] {
+function parseNotes(plot: PlotData): { id: string, text: string, author: string, timestamp: string }[] {
     if (plot.notes) {
         try {
             const parsed = typeof plot.notes === 'string' ? JSON.parse(plot.notes) : plot.notes;
@@ -56,7 +57,7 @@ function parseNotes(plot: any): { id: string, text: string, author: string, time
 }
 
 // Parse contacts from JSON string
-function parseContacts(plot: any): any[] {
+function parseContacts(plot: PlotData): ContactLog[] {
     if (plot.contacts) {
         try {
             const parsed = typeof plot.contacts === 'string' ? JSON.parse(plot.contacts) : plot.contacts;
@@ -100,8 +101,8 @@ function SalesPopupContent({
     formatDate,
     getZoningColor
 }: {
-    sale: any;
-    parseZonings: (plot: any) => { type: string, buildingRight: number }[];
+    sale: PlotData;
+    parseZonings: (plot: PlotData) => { type: string, buildingRight: number }[];
     formatDate: (dateStr: string) => string;
     getZoningColor: (code: string) => string;
 }) {
@@ -159,9 +160,9 @@ function SalesPopupContent({
                     )}
                     {sale.area && <p>Pinta-ala: {sale.area} m²</p>}
                     {sale.seller && <p>Myyjä: {sale.seller}</p>}
-                    <p className="text-gray-500 text-xs">Kauppapäivä: {formatDate(sale.soldDate)}</p>
+                    <p className="text-gray-500 text-xs">Kauppapäivä: {formatDate(sale.soldDate || '')}</p>
                     {sale.createdAt && (
-                        <p className="text-gray-400 text-xs">Lisätty: {formatDate(sale.createdAt)} ({sale.createdBy || '-'})</p>
+                        <p className="text-gray-400 text-xs">Lisätty: {formatDate(sale.createdAt || '')} ({sale.createdBy || '-'})</p>
                     )}
                 </div>
             )}
@@ -285,14 +286,14 @@ export default function MapComponent() {
     const [showPlots, setShowPlots] = useState(false);
     const [addPlotMode, setAddPlotMode] = useState(false);
     const [addPastPlotMode, setAddPastPlotMode] = useState(false);
-    const [plotsData, setPlotsData] = useState<any[]>([]);
+    const [plotsData, setPlotsData] = useState<PlotData[]>([]);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [isAddPastPlotModalOpen, setIsAddPastPlotModalOpen] = useState(false);
     const [newPlotLocation, setNewPlotLocation] = useState<{ lat: number, lng: number } | null>(null);
 
     // Edit mode states
     const [editModalMode, setEditModalMode] = useState<'add' | 'edit'>('add');
-    const [editingPlot, setEditingPlot] = useState<any>(null);
+    const [editingPlot, setEditingPlot] = useState<PlotData | null>(null);
 
     // Note modal state
     const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
@@ -301,24 +302,24 @@ export default function MapComponent() {
 
     // Mark Sold Modal State
     const [isMarkSoldModalOpen, setIsMarkSoldModalOpen] = useState(false);
-    const [plotToMarkSold, setPlotToMarkSold] = useState<any>(null);
+    const [plotToMarkSold, setPlotToMarkSold] = useState<PlotData | null>(null);
 
     // Mark Offered Modal State
     const [isMarkOfferedModalOpen, setIsMarkOfferedModalOpen] = useState(false);
-    const [plotToMarkOffered, setPlotToMarkOffered] = useState<any>(null);
+    const [plotToMarkOffered, setPlotToMarkOffered] = useState<PlotData | null>(null);
 
     // Contact Modals State
     const [isEditContactModalOpen, setIsEditContactModalOpen] = useState(false);
-    const [contactPlot, setContactPlot] = useState<any>(null);
+    const [contactPlot, setContactPlot] = useState<PlotData | null>(null);
 
     const [isLogContactModalOpen, setIsLogContactModalOpen] = useState(false);
-    const [logContactPlot, setLogContactPlot] = useState<any>(null);
+    const [logContactPlot, setLogContactPlot] = useState<PlotData | null>(null);
     // Flow state: Return to log modal after adding contact
     const [returnToLogContact, setReturnToLogContact] = useState(false);
     const [logContactPreselectId, setLogContactPreselectId] = useState<string | undefined>(undefined);
 
     const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
-    const [historyPlot, setHistoryPlot] = useState<any>(null);
+    const [historyPlot, setHistoryPlot] = useState<PlotData | null>(null);
 
     // Plot filters state
     const [plotFilters, setPlotFilters] = useState<PlotFilters>({
@@ -361,9 +362,8 @@ export default function MapComponent() {
     // Fetch plots data (contains both active and sold plots)
     useEffect(() => {
         if (showPlots || showSales) {
-            fetch('/api/plots')
-                .then(res => res.json())
-                .then(data => setPlotsData(Array.isArray(data) ? data : []))
+            api.fetchPlots()
+                .then(plots => setPlotsData(plots))
                 .catch(err => console.error(err));
         }
     }, [showPlots, showSales]);
@@ -391,11 +391,7 @@ export default function MapComponent() {
 
     useEffect(() => {
         if (showApartments) {
-            fetch('/api/apartments')
-                .then(res => {
-                    if (!res.ok) throw new Error('Failed to fetch');
-                    return res.json();
-                })
+            api.fetchApartments()
                 .then(data => {
                     if (Array.isArray(data) && data.length > 0) {
                         setApartmentData(data);
@@ -465,16 +461,10 @@ export default function MapComponent() {
     }, [plotsData, plotFilters]);
 
     // Save plot (add or update)
-    const savePlot = async (plot: any, action: 'add' | 'update') => {
+    const savePlot = async (plot: Partial<PlotData>, action: 'add' | 'update') => {
         try {
-            // First save/update the plot
-            const res = await fetch('/api/plots', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action, plot, id: plot.id })
-            });
-            const data = await res.json();
-            if (data.success) {
+            const data = await api.savePlot(plot, action);
+            if (data.success && data.plots) {
                 setPlotsData(data.plots);
             } else {
                 alert("Virhe tallennuksessa: " + (data.error || 'Tuntematon virhe'));
@@ -486,15 +476,10 @@ export default function MapComponent() {
     };
 
     // Add note to plot
-    const addNote = async (plotId: string, note: { text: string, author: string }) => {
+    const addNoteToPlot = async (plotId: string, note: { text: string, author: string }) => {
         try {
-            const res = await fetch('/api/plots', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'addNote', id: plotId, note })
-            });
-            const data = await res.json();
-            if (data.success) {
+            const data = await api.addNote(plotId, note);
+            if (data.success && data.plots) {
                 setPlotsData(data.plots);
             } else {
                 alert("Virhe muistiinpanon tallennuksessa: " + (data.error || 'Tuntematon virhe'));
@@ -507,18 +492,18 @@ export default function MapComponent() {
 
 
     // Open Edit Modal (Shared)
-    const openEditModal = (plot: any) => {
+    const openEditModal = (plot: PlotData) => {
         setEditingPlot(plot);
         setEditModalMode('edit');
         setIsAddModalOpen(true);
     };
 
-    const openMarkAsSoldModal = (plot: any) => {
+    const openMarkAsSoldModal = (plot: PlotData) => {
         setPlotToMarkSold(plot);
         setIsMarkSoldModalOpen(true);
     };
 
-    const handleMarkAsSoldSave = async (salesData: any) => {
+    const handleMarkAsSoldSave = async (salesData: MarkSoldData) => {
         if (!plotToMarkSold) return;
 
         const updatedPlot = {
@@ -536,12 +521,12 @@ export default function MapComponent() {
         setPlotToMarkSold(null);
     };
 
-    const openMarkAsOfferedModal = (plot: any) => {
+    const openMarkAsOfferedModal = (plot: PlotData) => {
         setPlotToMarkOffered(plot);
         setIsMarkOfferedModalOpen(true);
     };
 
-    const handleMarkAsOfferedSave = async (offerData: any) => {
+    const handleMarkAsOfferedSave = async (offerData: MarkOfferedData) => {
         if (!plotToMarkOffered) return;
 
         const updatedPlot = {
@@ -559,7 +544,7 @@ export default function MapComponent() {
     };
 
     // Helper to get contact persons
-    const getContactPersons = (plot: any) => {
+    const getContactPersons = (plot: PlotData) => {
         try {
             if (plot.contactPersons) {
                 const parsed = typeof plot.contactPersons === 'string' ? JSON.parse(plot.contactPersons) : plot.contactPersons;
@@ -581,12 +566,12 @@ export default function MapComponent() {
     };
 
     // Contact Handlers
-    const openEditContactModal = (plot: any) => {
+    const openEditContactModal = (plot: PlotData) => {
         setContactPlot(plot);
         setIsEditContactModalOpen(true);
     };
 
-    const handleContactInfoSave = async (contactPersons: any[]) => {
+    const handleContactInfoSave = async (contactPersons: { id: string; name: string; phone?: string; email?: string }[]) => {
         if (!contactPlot) return;
 
         // Optimistic update
@@ -621,33 +606,23 @@ export default function MapComponent() {
         }
     };
 
-    const openLogContactModal = (plot: any) => {
+    const openLogContactModal = (plot: PlotData) => {
         setLogContactPlot(plot);
         setIsLogContactModalOpen(true);
     };
 
-    const handleLogContactSave = async (log: any) => {
+    const handleLogContactSave = async (log: { date: string; desc: string; agent: string; person: string; personId?: string }) => {
         if (!logContactPlot) return;
 
         try {
-            const res = await fetch('/api/plots', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    action: 'addContact',
-                    id: logContactPlot.id,
-                    note: {
-                        date: log.date,
-                        desc: log.desc,
-                        agent: log.agent,
-                        method: 'Muu',
-                        person: log.person || logContactPlot.contactPerson || 'Ei määritelty',
-                        personId: log.personId
-                    }
-                })
+            const data = await api.addContactLog(logContactPlot.id, {
+                date: log.date,
+                desc: log.desc,
+                agent: log.agent,
+                method: 'Muu',
+                person: log.person || logContactPlot.contactPerson || 'Ei määritelty',
             });
-            const data = await res.json();
-            if (data.success) {
+            if (data.success && data.plots) {
                 setPlotsData(data.plots);
             } else {
                 alert("Virhe tallennuksessa.");
@@ -660,11 +635,12 @@ export default function MapComponent() {
         setIsLogContactModalOpen(false);
     };
 
-    const openHistoryModal = (plot: any) => {
+    const openHistoryModal = (plot: PlotData) => {
         setHistoryPlot(plot);
         setIsHistoryModalOpen(true);
     };
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleSearch = (filters: any) => {
         const parts = [];
         for (const key in filters) {
@@ -1284,16 +1260,16 @@ export default function MapComponent() {
                                                                                         {formatDate(item.date)}
                                                                                     </span>
                                                                                     <span className="text-[10px] text-gray-400">
-                                                                                        {item.agent}
+                                                                                        {(item as any).agent}
                                                                                     </span>
                                                                                 </div>
                                                                                 {/* Subheader: Contact Person */}
                                                                                 <div className="text-[10px] text-gray-600 mb-1 font-medium">
-                                                                                    {item.person || 'Tuntematon'}
+                                                                                    {(item as any).person || 'Tuntematon'}
                                                                                 </div>
                                                                                 {/* Body: Comment */}
                                                                                 <p className="text-gray-800">
-                                                                                    {item.desc}
+                                                                                    {(item as any).desc}
                                                                                 </p>
                                                                             </>
                                                                         ) : (
@@ -1303,11 +1279,11 @@ export default function MapComponent() {
                                                                                         {formatDate(item.date)}
                                                                                     </span>
                                                                                     <span className="text-[10px] text-gray-400">
-                                                                                        {item.author}
+                                                                                        {(item as any).author}
                                                                                     </span>
                                                                                 </div>
                                                                                 <p className="text-gray-700">
-                                                                                    {item.text}
+                                                                                    {(item as any).text}
                                                                                 </p>
                                                                             </>
                                                                         )}
@@ -1511,7 +1487,7 @@ export default function MapComponent() {
                 }}
                 onSave={(note) => {
                     if (notePlotId) {
-                        addNote(notePlotId, note);
+                        addNoteToPlot(notePlotId, note);
                     }
                 }}
                 plotName={notePlotName}

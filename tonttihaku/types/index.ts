@@ -106,3 +106,41 @@ export interface BusinessPlotFilters {
     maxBuildRight: string;
     usage: string[];
 }
+
+// API request/response types
+export type PlotAction = 'add' | 'update' | 'delete' | 'addNote' | 'addContact';
+
+export interface PlotApiRequest {
+    action: PlotAction;
+    plot?: Partial<PlotData>;
+    id?: string;
+    note?: Partial<Note> | Partial<ContactLog>;
+}
+
+export interface PlotApiResponse {
+    success?: boolean;
+    plots?: PlotData[];
+    error?: string;
+}
+
+export interface MarkSoldData {
+    buyer: string;
+    finalPrice: number;
+    pricePerRight: number;
+    soldDate: string;
+    desc: string;
+    updatedBy: string;
+}
+
+export interface MarkOfferedData {
+    offerPrice: number;
+    offerDate: string;
+    desc: string;
+    updatedBy: string;
+}
+
+export interface AuthResponse {
+    success?: boolean;
+    token?: string;
+    error?: string;
+}

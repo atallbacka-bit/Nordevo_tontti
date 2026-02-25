@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import crypto from 'crypto';
 
 export async function POST(req: Request) {
     try {
@@ -11,8 +12,13 @@ export async function POST(req: Request) {
         }
 
         if (password === sitePassword) {
-            // Create a simple session token (hash of password + a secret)
-            const token = Buffer.from(`tonttihaku:${sitePassword}:${Date.now()}`).toString('base64');
+            // Create HMAC-signed token (prevents token forgery)
+            const payload = `tonttihaku:${Date.now()}`;
+            const signature = crypto
+                .createHmac('sha256', sitePassword)
+                .update(payload)
+                .digest('hex');
+            const token = Buffer.from(`${payload}:${signature}`).toString('base64');
             return NextResponse.json({ success: true, token });
         }
 
@@ -22,3 +28,4 @@ export async function POST(req: Request) {
         return NextResponse.json({ error: 'Authentication failed' }, { status: 500 });
     }
 }
+
