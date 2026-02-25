@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { ZONING_TYPES, getZoningColor } from '@/lib/constants';
 import { ZoningEntry } from '@/types';
+import { useAuth } from '@/components/AuthProvider';
 
 interface AddPastPlotModalProps {
     isOpen: boolean;
@@ -16,6 +17,7 @@ export default function AddPastPlotModal({
     onSave,
     location
 }: AddPastPlotModalProps) {
+    const { username } = useAuth();
     const [formData, setFormData] = useState({
         name: '',
         createdBy: '',
@@ -31,7 +33,7 @@ export default function AddPastPlotModal({
         if (isOpen) {
             setFormData({
                 name: '',
-                createdBy: '',
+                createdBy: username || '',
                 buyer: '',
                 pricePerRight: '',
                 soldDate: new Date().toISOString().split('T')[0],

@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { ZONING_TYPES, getZoningColor, STATUS_OPTIONS, KUNTA_OPTIONS } from '@/lib/constants';
 import { ZoningEntry, PlotData } from '@/types';
+import { useAuth } from '@/components/AuthProvider';
 
 
 
@@ -22,6 +23,7 @@ export default function AddPlotModal({
     mode = 'add',
     existingPlot = null
 }: AddPlotModalProps) {
+    const { username } = useAuth();
     const [formData, setFormData] = useState({
         name: '',
         area: '',
@@ -110,7 +112,7 @@ export default function AddPlotModal({
                     kunta: existingPlot.kunta || 'Helsinki',
                     kiinteistotunnus: existingPlot.kiinteistotunnus || '',
                     createdBy: existingPlot.createdBy || '',
-                    updatedBy: '',
+                    updatedBy: username || '',
                     buyer: existingPlot.buyer || '',
                     finalPrice: existingPlot.finalPrice?.toString() || '',
                     soldDate: existingPlot.soldDate || new Date().toISOString().split('T')[0],
@@ -124,7 +126,7 @@ export default function AddPlotModal({
                 setFormData({
                     name: '', area: '', priceEst: '',
                     desc: '', seller: '', status: 'Vapaa',
-                    deadline: '', address: '', kunta: 'Helsinki', kiinteistotunnus: '', createdBy: '', updatedBy: '',
+                    deadline: '', address: '', kunta: 'Helsinki', kiinteistotunnus: '', createdBy: username || '', updatedBy: '',
                     buyer: '', finalPrice: '', soldDate: new Date().toISOString().split('T')[0],
                     contactPerson: '', contactPhone: '', contactEmail: '',
                     priority: 0
