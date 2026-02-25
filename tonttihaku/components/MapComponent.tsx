@@ -326,7 +326,7 @@ export default function MapComponent() {
         zoningTypes: ZONING_TYPES.map(z => z.code),
         buildingRightMin: '',
         buildingRightMax: '',
-        status: 'Vapaa,Kilpailussa',
+        status: 'Vapaa,Kilpailussa,Tarjottu,Pidossa',
         kunnat: [],
         priorities: []
     });

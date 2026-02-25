@@ -81,7 +81,7 @@ export default function FilterPanel({
     const [plotZoningTypes, setPlotZoningTypes] = useState<string[]>(ZONING_TYPES.map(z => z.code));
     const [plotBRMin, setPlotBRMin] = useState('');
     const [plotBRMax, setPlotBRMax] = useState('');
-    const [plotStatus, setPlotStatus] = useState('Vapaa,Kilpailussa');
+    const [plotStatus, setPlotStatus] = useState('Vapaa,Kilpailussa,Tarjottu,Pidossa');
     const [plotKunnat, setPlotKunnat] = useState<string[]>([]);
     const [plotPriorities, setPlotPriorities] = useState<number[]>([]);
     const [kuntaDropdownOpen, setKuntaDropdownOpen] = useState(false);
