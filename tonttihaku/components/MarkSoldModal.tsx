@@ -14,9 +14,10 @@ export default function MarkSoldModal({
     onSave,
     plot
 }: MarkSoldModalProps) {
-    const [formData, setFormData] = useState({
+    const [formData, setFormData] = useState<{ buyer: string; finalPrice: string; pricePerRight: string; soldDate: string; desc: string; updatedBy: string }>({
         buyer: '',
         finalPrice: '',
+        pricePerRight: '',
         soldDate: new Date().toISOString().split('T')[0],
         desc: '',
         updatedBy: ''
@@ -27,6 +28,7 @@ export default function MarkSoldModal({
             setFormData({
                 buyer: '',
                 finalPrice: '',
+                pricePerRight: '',
                 soldDate: new Date().toISOString().split('T')[0],
                 desc: '',
                 updatedBy: ''
@@ -36,11 +38,15 @@ export default function MarkSoldModal({
 
     if (!isOpen || !plot) return null;
 
+    const totalBuildingRight = plot.buildingRight || 0;
+    const computedFinalPrice = totalBuildingRight * (parseInt(formData.pricePerRight) || 0);
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         onSave({
             ...formData,
-            finalPrice: parseInt(formData.finalPrice) || 0
+            finalPrice: computedFinalPrice,
+            pricePerRight: parseInt(formData.pricePerRight) || 0
         });
         onClose();
     };
@@ -102,17 +108,29 @@ export default function MarkSoldModal({
                         />
                     </div>
 
-                    <div>
-                        <label className="block text-xs font-semibold text-gray-700 uppercase">Kauppahinta (€) *</label>
-                        <input
-                            name="finalPrice"
-                            type="number"
-                            required
-                            value={formData.finalPrice}
-                            onChange={handleChange}
-                            className="w-full border rounded p-2 text-sm"
-                            placeholder="0"
-                        />
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Kem kauppahinta *</label>
+                            <div className="relative">
+                                <input
+                                    name="pricePerRight"
+                                    type="number"
+                                    required
+                                    value={formData.pricePerRight}
+                                    onChange={handleChange}
+                                    className="w-full border rounded p-2 text-sm pr-12"
+                                    placeholder="0"
+                                />
+                                <span className="absolute right-3 top-2 text-xs text-gray-500">€/k-m²</span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Laskettu kokoshinta</label>
+                            <div className="w-full border rounded p-2 text-sm bg-gray-100 text-gray-600 truncate">
+                                {computedFinalPrice.toLocaleString('fi-FI')} €
+                            </div>
+                        </div>
                     </div>
 
                     <div>

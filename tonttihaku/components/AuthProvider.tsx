@@ -22,21 +22,35 @@ export function useAuth() {
 }
 
 export default function AuthProvider({ children }: { children: React.ReactNode }) {
-    // AUTHENTICATION DISABLED (Public Access Mode)
-    // Default to true so all components behave as if logged in
-    const [isAuthenticated, setIsAuthenticated] = useState(true);
-    const [username, setUsernameState] = useState('Vierailija');
-    const [isLoading, setIsLoading] = useState(false); // No loading needed
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [username, setUsernameState] = useState('Tuntematon');
+    const [isLoading, setIsLoading] = useState(true);
     const pathname = usePathname();
     const router = useRouter();
 
     useEffect(() => {
-        // We still check for a stored username just for display purposes
+        // Check auth on mount
+        const localToken = localStorage.getItem('tonttihaku_auth');
+
+        // Also check cookie as fallback (since middleware relies on it)
+        const match = document.cookie.match(/(^|;)\s*site_auth_token=([^;]+)/);
+        const cookieToken = match ? match[2] : undefined;
+
+        const token = localToken || cookieToken;
         const storedUser = localStorage.getItem('tonttihaku_user');
-        if (storedUser) {
-            setUsernameState(storedUser);
+
+        if (token) {
+            setIsAuthenticated(true);
+            setUsernameState(storedUser || 'Tuntematon');
+            // If token in cookie but not local, sync local
+            if (cookieToken && !localToken) {
+                localStorage.setItem('tonttihaku_auth', cookieToken);
+            }
+        } else if (pathname !== '/login') {
+            router.push('/login');
         }
-    }, []);
+        setIsLoading(false);
+    }, [pathname, router]);
 
     const setUsername = (name: string) => {
         const trimmed = name.trim() || 'Tuntematon';
@@ -45,6 +59,8 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     };
 
     const logout = () => {
+        // Clear cookie
+        document.cookie = 'site_auth_token=; path=/; max-age=0; SameSite=Lax';
         localStorage.removeItem('tonttihaku_auth');
         localStorage.removeItem('tonttihaku_user');
         setIsAuthenticated(false);
@@ -65,16 +81,10 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
         return <>{children}</>;
     }
 
-    // For other pages, we assume middleware handles protection.
-    // If we are here, we are allowed.
-    // We just need to ensure context has correct username/state if possible.
-    // But we don't block rendering or force redirect anymore to avoid loops.
-
+    // For other pages, middleware handles protection.
     return (
         <AuthContext.Provider value={{ isAuthenticated: true, username, setUsername, logout }}>
             {children}
         </AuthContext.Provider>
     );
-
-
 }

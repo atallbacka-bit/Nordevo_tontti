@@ -29,7 +29,7 @@ interface LayerStates {
     melu: boolean;
     edit_mode: boolean;
     add_plot_mode: boolean;
-    sales_analysis: boolean;
+    add_past_plot_mode?: boolean;
     business_plots: boolean;
 }
 
@@ -463,6 +463,22 @@ export default function FilterPanel({
                                         <span className={`text-sm font-medium transition-colors ${layerStates.add_plot_mode ? 'text-green-700' : 'text-slate-600 group-hover:text-slate-800'}`}>Lisäystila (Klikkaa karttaa)</span>
                                     </label>
 
+                                    {/* Add Past Plot Mode Sub-Toggle */}
+                                    {layerStates.add_plot_mode && (
+                                        <label className="flex items-center p-2 mx-2 bg-gray-50 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-100 transition-all group">
+                                            <div className={`w-4 h-4 rounded border flex items-center justify-center mr-3 transition-colors ${layerStates.add_past_plot_mode ? 'bg-blue-500 border-blue-500' : 'border-slate-300 bg-white'}`}>
+                                                {layerStates.add_past_plot_mode && <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                                            </div>
+                                            <input
+                                                type="checkbox"
+                                                checked={!!layerStates.add_past_plot_mode}
+                                                onChange={(e) => toggleLayer('add_past_plot_mode', e)}
+                                                className="hidden"
+                                            />
+                                            <span className={`text-xs font-medium transition-colors ${layerStates.add_past_plot_mode ? 'text-blue-700' : 'text-slate-600'}`}>Menneen tontin lisäys</span>
+                                        </label>
+                                    )}
+
                                     {/* Export Button */}
                                     <button
                                         onClick={handleExportVisiblePlots}
@@ -526,7 +542,6 @@ export default function FilterPanel({
 
                         {/* Layer Toggle Component */}
                         {[
-                            { id: 'sales_analysis', label: 'Uudiskohteiden myyntidata (STH)', desc: 'Analysoi myyntidataa Excelistä' },
                             { id: 'business_plots', label: 'Vapaat yritystontit', desc: 'Helsingin kaupungin vapaat tontit' },
                             { id: 'kiinteistot', label: 'Kiinteistöt', desc: 'Kiinteistörajat ja -tunnukset' },
                             { id: 'asemakaava_info', label: 'Asemakaavatiedot', desc: 'Klikkaa karttaa nähdäksesi tiedot' },
@@ -648,12 +663,6 @@ export default function FilterPanel({
                                                 />
                                             </div>
                                         </div>
-                                    </div>
-                                )}
-
-                                {/* Sales Analysis Portal Container */}
-                                {layer.id === 'sales_analysis' && layerStates.sales_analysis && (
-                                    <div id="sales-analysis-filters-container" className="mt-3 pt-3 border-t border-slate-100 space-y-3 animate-in fade-in duration-300 relative z-30">
                                     </div>
                                 )}
 

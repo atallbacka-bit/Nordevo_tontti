@@ -35,7 +35,7 @@ export async function POST(req: Request) {
             const { error } = await supabase.from('plots').insert({
                 id: newId,
                 name: plot.name || 'Nimetön',
-                zonings: plot.zonings || '[]',
+                zonings: typeof plot.zonings === 'string' ? plot.zonings : JSON.stringify(plot.zonings || []),
                 buildingRight: Number(plot.buildingRight) || 0,
                 area: Number(plot.area) || 0,
                 priceEst: Number(plot.priceEst) || 0,
@@ -52,7 +52,7 @@ export async function POST(req: Request) {
                 createdBy: plot.createdBy || 'Tuntematon',
                 updatedAt: '',
                 updatedBy: '',
-                notes: plot.notes || '[]',
+                notes: typeof plot.notes === 'string' ? plot.notes : JSON.stringify(plot.notes || []),
                 buyer: plot.buyer || '',
                 finalPrice: Number(plot.finalPrice) || 0,
                 soldDate: plot.soldDate || '',
@@ -63,8 +63,8 @@ export async function POST(req: Request) {
                 contactPerson: plot.contactPerson || '',
                 contactPhone: plot.contactPhone || '',
                 contactEmail: plot.contactEmail || '',
-                contacts: plot.contacts || '[]',
-                contactPersons: plot.contactPersons || '[]',
+                contacts: typeof plot.contacts === 'string' ? plot.contacts : JSON.stringify(plot.contacts || []),
+                contactPersons: typeof plot.contactPersons === 'string' ? plot.contactPersons : JSON.stringify(plot.contactPersons || []),
                 priority: Number(plot.priority) || 0
             });
 
@@ -91,10 +91,10 @@ export async function POST(req: Request) {
                 .from('plots')
                 .update({
                     name: updated.name,
-                    zonings: updated.zonings,
-                    buildingRight: Number(updated.buildingRight),
-                    area: Number(updated.area),
-                    priceEst: Number(updated.priceEst),
+                    zonings: typeof updated.zonings === 'string' ? updated.zonings : JSON.stringify(updated.zonings || []),
+                    buildingRight: Number(updated.buildingRight) || 0,
+                    area: Number(updated.area) || 0,
+                    priceEst: Number(updated.priceEst) || 0,
                     desc: updated.desc,
                     seller: updated.seller,
                     status: updated.status,
@@ -102,23 +102,23 @@ export async function POST(req: Request) {
                     address: updated.address,
                     kunta: normalizeKunta(updated.kunta),
                     kiinteistotunnus: updated.kiinteistotunnus || '',
-                    lat: Number(updated.lat),
-                    lng: Number(updated.lng),
+                    lat: Number(updated.lat) || 0,
+                    lng: Number(updated.lng) || 0,
                     updatedAt: new Date().toISOString(),
                     updatedBy: updated.updatedBy || existing.updatedBy,
-                    notes: updated.notes,
+                    notes: typeof updated.notes === 'string' ? updated.notes : JSON.stringify(updated.notes || []),
                     buyer: updated.buyer,
-                    finalPrice: Number(updated.finalPrice),
+                    finalPrice: Number(updated.finalPrice) || 0,
                     soldDate: updated.soldDate,
-                    pricePerRight: Number(updated.pricePerRight),
-                    offerPrice: Number(updated.offerPrice),
+                    pricePerRight: Number(updated.pricePerRight) || 0,
+                    offerPrice: Number(updated.offerPrice) || 0,
                     offerDate: updated.offerDate,
                     offerDesc: updated.offerDesc,
                     contactPerson: updated.contactPerson,
                     contactPhone: updated.contactPhone,
                     contactEmail: updated.contactEmail,
-                    contacts: updated.contacts,
-                    contactPersons: updated.contactPersons,
+                    contacts: typeof updated.contacts === 'string' ? updated.contacts : JSON.stringify(updated.contacts || []),
+                    contactPersons: typeof updated.contactPersons === 'string' ? updated.contactPersons : JSON.stringify(updated.contactPersons || []),
                     priority: Number(updated.priority) || 0,
                 })
                 .eq('id', id);
@@ -209,8 +209,8 @@ export async function POST(req: Request) {
 
         return NextResponse.json({ error: "Invalid action" }, { status: 400 });
 
-    } catch (error) {
+    } catch (error: any) {
         console.error("DB Error:", error);
-        return NextResponse.json({ error: "Failed to save data" }, { status: 500 });
+        return NextResponse.json({ error: error.message || "Failed to save data", details: error }, { status: 500 });
     }
 }

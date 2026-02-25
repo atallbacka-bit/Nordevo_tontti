@@ -22,7 +22,7 @@ import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import FilterPanel from './FilterPanel';
 import AddPlotModal from './AddPlotModal';
-import SalesAnalysisLayer from './SalesAnalysisLayer';
+import AddPastPlotModal from './AddPastPlotModal';
 import BusinessPlotsLayer from './BusinessPlotsLayer';
 import { ZONING_TYPES, getZoningColor, getPlotColor, STATUS_OPTIONS } from '@/lib/constants';
 import { PlotFilters, SalesFilters, BusinessPlotFilters } from '@/types';
@@ -276,7 +276,6 @@ export default function MapComponent() {
     const [showMaapera, setShowMaapera] = useState(false);
     const [showMelu, setShowMelu] = useState(false);
     const [showKorkeus, setShowKorkeus] = useState(false);
-    const [showSalesAnalysis, setShowSalesAnalysis] = useState(false);
     const [showBusinessPlots, setShowBusinessPlots] = useState(false);
 
     const wmsLayerRef = useRef<L.TileLayer.WMS>(null);
@@ -285,8 +284,10 @@ export default function MapComponent() {
     // Plots State
     const [showPlots, setShowPlots] = useState(false);
     const [addPlotMode, setAddPlotMode] = useState(false);
+    const [addPastPlotMode, setAddPastPlotMode] = useState(false);
     const [plotsData, setPlotsData] = useState<any[]>([]);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [isAddPastPlotModalOpen, setIsAddPastPlotModalOpen] = useState(false);
     const [newPlotLocation, setNewPlotLocation] = useState<{ lat: number, lng: number } | null>(null);
 
     // Edit mode states
@@ -525,6 +526,7 @@ export default function MapComponent() {
             status: 'Mennyt',
             buyer: salesData.buyer,
             finalPrice: salesData.finalPrice,
+            pricePerRight: salesData.pricePerRight,
             soldDate: salesData.soldDate,
             updatedBy: salesData.updatedBy, // Save who marked it as sold
             desc: salesData.desc ? (plotToMarkSold.desc ? plotToMarkSold.desc + '\n\n' + salesData.desc : salesData.desc) : plotToMarkSold.desc
@@ -731,11 +733,17 @@ export default function MapComponent() {
             };
 
             const onAddPlotClick = (e: L.LeafletMouseEvent) => {
-                if (isAddModalOpen) return;
+                if (isAddModalOpen || isAddPastPlotModalOpen) return;
                 setNewPlotLocation({ lat: e.latlng.lat, lng: e.latlng.lng });
                 setEditModalMode('add');
                 setEditingPlot(null);
                 setIsAddModalOpen(true);
+            };
+
+            const onAddPastPlotClick = (e: L.LeafletMouseEvent) => {
+                if (isAddModalOpen || isAddPastPlotModalOpen) return;
+                setNewPlotLocation({ lat: e.latlng.lat, lng: e.latlng.lng });
+                setIsAddPastPlotModalOpen(true);
             };
 
             if (editMode) {
@@ -744,6 +752,8 @@ export default function MapComponent() {
                 // User requirement: "the once we manually add in the tunnetut tontit section are the onces that we are actually interested"
                 // So adding sales directly might be less important, but let's keep it functional as adding a plot
                 map.on('click', onAddPlotClick);
+            } else if (addPastPlotMode) {
+                map.on('click', onAddPastPlotClick);
             } else if (addPlotMode) {
                 map.on('click', onAddPlotClick);
             } else {
@@ -753,8 +763,9 @@ export default function MapComponent() {
             return () => {
                 map.off('click', onClick);
                 map.off('click', onAddPlotClick);
+                map.off('click', onAddPastPlotClick);
             };
-        }, [map, showKiinteistot, showAsemakaavaInfo, editMode, addPlotMode, isAddModalOpen]);
+        }, [map, showKiinteistot, showAsemakaavaInfo, editMode, addPlotMode, addPastPlotMode, isAddModalOpen, isAddPastPlotModalOpen]);
 
         return null;
     }
@@ -772,7 +783,6 @@ export default function MapComponent() {
         if (layer === 'korkeus') setShowKorkeus(visible);
         if (layer === 'kiinteistot') setShowKiinteistot(visible);
         if (layer === 'asemakaava_info') setShowAsemakaavaInfo(visible);
-        if (layer === 'sales_analysis') setShowSalesAnalysis(visible);
         if (layer === 'business_plots') setShowBusinessPlots(visible);
 
         if (layer === 'sales') {
@@ -792,11 +802,18 @@ export default function MapComponent() {
             }
         }
         if (layer === 'add_plot_mode') {
-            if (showPlots) setAddPlotMode(visible);
-            else {
+            if (showPlots) {
+                setAddPlotMode(visible);
+                if (!visible) setAddPastPlotMode(false);
+            } else {
                 if (visible) alert("Ota ensin 'Tunnetut tontit' -taso käyttöön.");
                 setAddPlotMode(false);
+                setAddPastPlotMode(false);
             }
+        }
+        if (layer === 'add_past_plot_mode') {
+            if (showPlots && addPlotMode) setAddPastPlotMode(visible);
+            else setAddPastPlotMode(false);
         }
         if (layer === 'apartments') setShowApartments(visible);
     };
@@ -838,7 +855,7 @@ export default function MapComponent() {
                     melu: showMelu,
                     edit_mode: editMode,
                     add_plot_mode: addPlotMode,
-                    sales_analysis: showSalesAnalysis,
+                    add_past_plot_mode: addPastPlotMode,
                     business_plots: showBusinessPlots
                 }}
                 onPlotFiltersChange={setPlotFilters}
@@ -1031,7 +1048,7 @@ export default function MapComponent() {
                             ">
                                 <div>${label}</div>
                                 <div style="font-size:0.8em; opacity:0.8;">${totalBR.toLocaleString()}</div>
-                                ${unitPrice ? `<div style='font-size:0.75em; opacity:0.7; margin-top:1px;'>${unitPrice.toLocaleString()} €</div>` : ''}
+                                ${(plot.pricePerRight && plot.pricePerRight > 0) ? `<div style='font-size:0.75em; opacity:0.7; margin-top:1px;'>${plot.pricePerRight.toLocaleString()} €</div>` : ''}
                             </div>`;
                         } else if (plot.status === 'Pidossa') {
                             // Pidossa: Purple, rounded square (distinct shape/style)
@@ -1108,198 +1125,245 @@ export default function MapComponent() {
                                         </div>
 
                                         <h3 className="font-bold text-lg mb-1 pr-36 leading-tight">{plot.name}</h3>
-                                        <div className="space-y-1">
-                                            <p className="text-gray-600">{plot.address}</p>
 
-                                            {/* Status with deadline */}
-                                            <p className={`font-bold ${getStatusColor(plot.status)}`}>
-                                                {plot.status}
-                                                {plot.status === 'Kilpailussa' && plot.deadline && (
-                                                    <span className="font-normal ml-2">
-                                                        (DL: {formatDate(plot.deadline)})
-                                                    </span>
-                                                )}
-                                            </p>
+                                        {/* SOLD PLOT SPECIFIC LAYOUT */}
+                                        {plot.status === 'Mennyt' ? (
+                                            <div className="space-y-2 mt-2">
+                                                <p className={`font-bold ${getStatusColor(plot.status)}`}>{plot.status}</p>
 
-                                            {/* Zoning breakdown */}
-                                            <div className="bg-gray-50 p-1.5 rounded my-1.5">
-                                                <div className="text-[10px] font-semibold text-gray-500 uppercase mb-0.5">Kaavatyypit</div>
-                                                {zonings.map((z, idx) => (
-                                                    <div key={idx} className="flex justify-between items-center text-sm">
-                                                        <span style={{ color: getZoningColor(z.type) }} className="font-medium">
-                                                            {z.type} - {ZONING_TYPES.find(zt => zt.code === z.type)?.label || z.type}
-                                                        </span>
-                                                        <span className="font-semibold">{z.buildingRight?.toLocaleString()} k-m²</span>
-                                                    </div>
-                                                ))}
-                                                {zonings.length > 1 && (
-                                                    <div className="border-t mt-0.5 pt-0.5 flex justify-between font-bold text-sm">
-                                                        <span>Yhteensä</span>
-                                                        <span>{totalBR.toLocaleString()} k-m²</span>
-                                                    </div>
-                                                )}
-                                            </div>
-
-                                            <div className="grid grid-cols-2 gap-x-2 text-gray-700">
-                                                <span>Pinta-ala:</span> <span className="font-medium">{plot.area} m²</span>
-                                                <span>{plot.status === 'Tarjottu' ? 'Tarjous:' : 'Hinta-arvio:'}</span>
-                                                <span className="font-medium">
-                                                    {(plot.status === 'Tarjottu' && plot.offerPrice ? plot.offerPrice : plot.priceEst)?.toLocaleString()} €
-                                                </span>
-                                                {unitPrice && (
-                                                    <>
-                                                        <span>Yksikköhinta:</span>
-                                                        <span className="font-medium">{unitPrice.toLocaleString()} €/k-m²</span>
-                                                    </>
-                                                )}
-                                            </div>
-                                            <p className="text-gray-800">Myyjä: <span className="font-semibold">{plot.seller || '-'}</span></p>
-                                            {plot.kiinteistotunnus && <p className="text-gray-800">Kiinteistötunnus: <span className="font-semibold">{plot.kiinteistotunnus}</span></p>}
-
-                                            {plot.desc && <p className="text-gray-600 italic border-t pt-1 mt-1 text-[10px]">{plot.desc}</p>}
-
-                                            {/* Contact Info - Compact Version (Moved Up) */}
-                                            <div className="border-t pt-1 mt-1">
-                                                <div className="flex justify-between items-center mb-0.5">
-                                                    <div className="text-[10px] font-semibold text-gray-500 uppercase">Yhteystiedot</div>
-                                                    <button
-                                                        onClick={() => openEditContactModal(plot)}
-                                                        className="text-[10px] text-blue-600 hover:underline"
-                                                    >
-                                                        Muokkaa/lisää
-                                                    </button>
+                                                {/* Zoning breakdown (Same as original) */}
+                                                <div className="bg-gray-50 p-1.5 rounded my-1.5">
+                                                    <div className="text-[10px] font-semibold text-gray-500 uppercase mb-0.5">Kaavatyypit</div>
+                                                    {zonings.map((z, idx) => (
+                                                        <div key={idx} className="flex justify-between items-center text-sm">
+                                                            <span style={{ color: getZoningColor(z.type) }} className="font-medium">
+                                                                {z.type} - {ZONING_TYPES.find(zt => zt.code === z.type)?.label || z.type}
+                                                            </span>
+                                                            <span className="font-semibold">{z.buildingRight?.toLocaleString()} k-m²</span>
+                                                        </div>
+                                                    ))}
+                                                    {zonings.length > 1 && (
+                                                        <div className="border-t mt-0.5 pt-0.5 flex justify-between font-bold text-sm">
+                                                            <span>Yhteensä</span>
+                                                            <span>{totalBR.toLocaleString()} k-m²</span>
+                                                        </div>
+                                                    )}
                                                 </div>
 
-                                                {getContactPersons(plot).length > 0 ? (
-                                                    <div className="grid grid-cols-1 gap-0.5 mb-1">
-                                                        {getContactPersons(plot).map((person: any, idx: number) => (
-                                                            <div key={idx} className="text-[10px] text-gray-800 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200 flex flex-wrap gap-x-2 items-center">
-                                                                <span className="font-semibold">{person.name}</span>
-                                                                {person.role && <span className="text-gray-500 italic text-[10px]">({person.role})</span>}
-                                                                {person.phone && <span className="text-gray-600 text-[10px]">{person.phone}</span>}
-                                                                {person.email && <span className="text-gray-600 text-[10px]">{person.email}</span>}
-                                                            </div>
-                                                        ))}
+                                                <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-gray-700 mt-2">
+                                                    <span>Kauppapäivä:</span>
+                                                    <span className="font-medium">{plot.soldDate ? formatDate(plot.soldDate) : '-'}</span>
+
+                                                    <span>Kem kauppahinta:</span>
+                                                    <span className="font-medium">{plot.pricePerRight ? `${plot.pricePerRight.toLocaleString()} €/k-m²` : '-'}</span>
+
+                                                    <span>Kokonaishinta:</span>
+                                                    <span className="font-bold text-gray-900">{plot.finalPrice ? `${plot.finalPrice.toLocaleString()} €` : '-'}</span>
+                                                </div>
+
+                                                {plot.desc && (
+                                                    <div className="mt-2 text-sm text-gray-700 bg-blue-50/50 p-2 rounded border border-blue-100/50 italic">
+                                                        "{plot.desc}"
                                                     </div>
-                                                ) : (
-                                                    <div className="mb-1 text-[10px] text-gray-400 italic">Ei yhteystietoja.</div>
                                                 )}
                                             </div>
+                                        ) : (
+                                            /* STANDARD PLOT LAYOUT */
+                                            <div className="space-y-1">
+                                                <p className="text-gray-600">{plot.address}</p>
 
-                                            {/* Unified History Container - Compact Version (Moved Down) */}
-                                            {(notes.length > 0 || contacts.length > 0) && (
+                                                {/* Status with deadline */}
+                                                <p className={`font-bold ${getStatusColor(plot.status)}`}>
+                                                    {plot.status}
+                                                    {plot.status === 'Kilpailussa' && plot.deadline && (
+                                                        <span className="font-normal ml-2">
+                                                            (DL: {formatDate(plot.deadline)})
+                                                        </span>
+                                                    )}
+                                                </p>
+
+                                                {/* Zoning breakdown */}
+                                                <div className="bg-gray-50 p-1.5 rounded my-1.5">
+                                                    <div className="text-[10px] font-semibold text-gray-500 uppercase mb-0.5">Kaavatyypit</div>
+                                                    {zonings.map((z, idx) => (
+                                                        <div key={idx} className="flex justify-between items-center text-sm">
+                                                            <span style={{ color: getZoningColor(z.type) }} className="font-medium">
+                                                                {z.type} - {ZONING_TYPES.find(zt => zt.code === z.type)?.label || z.type}
+                                                            </span>
+                                                            <span className="font-semibold">{z.buildingRight?.toLocaleString()} k-m²</span>
+                                                        </div>
+                                                    ))}
+                                                    {zonings.length > 1 && (
+                                                        <div className="border-t mt-0.5 pt-0.5 flex justify-between font-bold text-sm">
+                                                            <span>Yhteensä</span>
+                                                            <span>{totalBR.toLocaleString()} k-m²</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                <div className="grid grid-cols-2 gap-x-2 text-gray-700">
+                                                    <span>Pinta-ala:</span> <span className="font-medium">{plot.area} m²</span>
+                                                    <span>{plot.status === 'Tarjottu' ? 'Tarjous:' : 'Hinta-arvio:'}</span>
+                                                    <span className="font-medium">
+                                                        {(plot.status === 'Tarjottu' && plot.offerPrice ? plot.offerPrice : plot.priceEst)?.toLocaleString()} €
+                                                    </span>
+                                                    {unitPrice && (
+                                                        <>
+                                                            <span>Yksikköhinta:</span>
+                                                            <span className="font-medium">{unitPrice.toLocaleString()} €/k-m²</span>
+                                                        </>
+                                                    )}
+                                                </div>
+                                                <p className="text-gray-800">Myyjä: <span className="font-semibold">{plot.seller || '-'}</span></p>
+                                                {plot.kiinteistotunnus && <p className="text-gray-800">Kiinteistötunnus: <span className="font-semibold">{plot.kiinteistotunnus}</span></p>}
+
+                                                {plot.desc && <p className="text-gray-600 italic border-t pt-1 mt-1 text-[10px]">{plot.desc}</p>}
+
+                                                {/* Contact Info - Compact Version (Moved Up) */}
                                                 <div className="border-t pt-1 mt-1">
                                                     <div className="flex justify-between items-center mb-0.5">
-                                                        <div className="text-[10px] font-semibold text-gray-500 uppercase">
-                                                            Tapahtumat ({notes.length + contacts.length})
-                                                        </div>
+                                                        <div className="text-[10px] font-semibold text-gray-500 uppercase">Yhteystiedot</div>
                                                         <button
-                                                            onClick={() => openHistoryModal(plot)}
+                                                            onClick={() => openEditContactModal(plot)}
                                                             className="text-[10px] text-blue-600 hover:underline"
                                                         >
-                                                            Näytä kaikki
+                                                            Muokkaa/lisää
                                                         </button>
                                                     </div>
-                                                    {/* Increased max-height slightly to ensure 1.5 items visible (approx 100px for detailed items) */}
-                                                    <div className="max-h-[110px] overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
-                                                        {[
-                                                            ...notes.map(n => ({ ...n, type: 'note', date: n.timestamp })),
-                                                            ...contacts.map(c => ({ ...c, type: 'contact', date: c.timestamp || c.date }))
-                                                        ]
-                                                            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                                                            .map((item, idx) => (
-                                                                <div
-                                                                    key={`${item.type}-${item.id || idx}`}
-                                                                    className={`text-[10px] p-1.5 rounded border leading-tight ${item.type === 'contact'
-                                                                        ? 'bg-green-50/50 border-green-100'
-                                                                        : 'bg-yellow-50/50 border-yellow-100'
-                                                                        }`}
-                                                                >
-                                                                    {item.type === 'contact' ? (
-                                                                        <>
-                                                                            {/* Header: Date | Agent (Right) */}
-                                                                            <div className="flex justify-between items-start mb-0.5">
-                                                                                <span className="font-bold text-green-800">
-                                                                                    {formatDate(item.date)}
-                                                                                </span>
-                                                                                <span className="text-[10px] text-gray-400">
-                                                                                    {item.agent}
-                                                                                </span>
-                                                                            </div>
-                                                                            {/* Subheader: Contact Person */}
-                                                                            <div className="text-[10px] text-gray-600 mb-1 font-medium">
-                                                                                {item.person || 'Tuntematon'}
-                                                                            </div>
-                                                                            {/* Body: Comment */}
-                                                                            <p className="text-gray-800">
-                                                                                {item.desc}
-                                                                            </p>
-                                                                        </>
-                                                                    ) : (
-                                                                        <>
-                                                                            <div className="flex justify-between items-center mb-0.5">
-                                                                                <span className="font-semibold text-yellow-700">
-                                                                                    {formatDate(item.date)}
-                                                                                </span>
-                                                                                <span className="text-[10px] text-gray-400">
-                                                                                    {item.author}
-                                                                                </span>
-                                                                            </div>
-                                                                            <p className="text-gray-700">
-                                                                                {item.text}
-                                                                            </p>
-                                                                        </>
-                                                                    )}
+
+                                                    {getContactPersons(plot).length > 0 ? (
+                                                        <div className="grid grid-cols-1 gap-0.5 mb-1">
+                                                            {getContactPersons(plot).map((person: any, idx: number) => (
+                                                                <div key={idx} className="text-[10px] text-gray-800 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200 flex flex-wrap gap-x-2 items-center">
+                                                                    <span className="font-semibold">{person.name}</span>
+                                                                    {person.role && <span className="text-gray-500 italic text-[10px]">({person.role})</span>}
+                                                                    {person.phone && <span className="text-gray-600 text-[10px]">{person.phone}</span>}
+                                                                    {person.email && <span className="text-gray-600 text-[10px]">{person.email}</span>}
                                                                 </div>
                                                             ))}
+                                                        </div>
+                                                    ) : (
+                                                        <div className="mb-1 text-[10px] text-gray-400 italic">Ei yhteystietoja.</div>
+                                                    )}
+                                                </div>
+
+                                                {/* Unified History Container - Compact Version (Moved Down) */}
+                                                {(notes.length > 0 || contacts.length > 0) && (
+                                                    <div className="border-t pt-1 mt-1">
+                                                        <div className="flex justify-between items-center mb-0.5">
+                                                            <div className="text-[10px] font-semibold text-gray-500 uppercase">
+                                                                Tapahtumat ({notes.length + contacts.length})
+                                                            </div>
+                                                            <button
+                                                                onClick={() => openHistoryModal(plot)}
+                                                                className="text-[10px] text-blue-600 hover:underline"
+                                                            >
+                                                                Näytä kaikki
+                                                            </button>
+                                                        </div>
+                                                        {/* Increased max-height slightly to ensure 1.5 items visible (approx 100px for detailed items) */}
+                                                        <div className="max-h-[110px] overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
+                                                            {[
+                                                                ...notes.map(n => ({ ...n, type: 'note', date: n.timestamp })),
+                                                                ...contacts.map(c => ({ ...c, type: 'contact', date: c.timestamp || c.date }))
+                                                            ]
+                                                                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                                                                .map((item, idx) => (
+                                                                    <div
+                                                                        key={`${item.type}-${item.id || idx}`}
+                                                                        className={`text-[10px] p-1.5 rounded border leading-tight ${item.type === 'contact'
+                                                                            ? 'bg-green-50/50 border-green-100'
+                                                                            : 'bg-yellow-50/50 border-yellow-100'
+                                                                            }`}
+                                                                    >
+                                                                        {item.type === 'contact' ? (
+                                                                            <>
+                                                                                {/* Header: Date | Agent (Right) */}
+                                                                                <div className="flex justify-between items-start mb-0.5">
+                                                                                    <span className="font-bold text-green-800">
+                                                                                        {formatDate(item.date)}
+                                                                                    </span>
+                                                                                    <span className="text-[10px] text-gray-400">
+                                                                                        {item.agent}
+                                                                                    </span>
+                                                                                </div>
+                                                                                {/* Subheader: Contact Person */}
+                                                                                <div className="text-[10px] text-gray-600 mb-1 font-medium">
+                                                                                    {item.person || 'Tuntematon'}
+                                                                                </div>
+                                                                                {/* Body: Comment */}
+                                                                                <p className="text-gray-800">
+                                                                                    {item.desc}
+                                                                                </p>
+                                                                            </>
+                                                                        ) : (
+                                                                            <>
+                                                                                <div className="flex justify-between items-center mb-0.5">
+                                                                                    <span className="font-semibold text-yellow-700">
+                                                                                        {formatDate(item.date)}
+                                                                                    </span>
+                                                                                    <span className="text-[10px] text-gray-400">
+                                                                                        {item.author}
+                                                                                    </span>
+                                                                                </div>
+                                                                                <p className="text-gray-700">
+                                                                                    {item.text}
+                                                                                </p>
+                                                                            </>
+                                                                        )}
+                                                                    </div>
+                                                                ))}
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                <div className="flex gap-2 mt-1">
+                                                    {getContactPersons(plot).length > 0 && (
+                                                        <button
+                                                            onClick={() => openLogContactModal(plot)}
+                                                            className="flex-1 px-2 py-1 text-[10px] font-medium text-white bg-green-600 rounded hover:bg-green-700 shadow-sm"
+                                                        >
+                                                            Uusi kontaktointi
+                                                        </button>
+                                                    )}
+                                                    <button
+                                                        onClick={() => openNoteModal(plot.id, plot.name)}
+                                                        className="flex-1 px-2 py-1 text-[10px] font-medium text-yellow-700 bg-yellow-50 border border-yellow-200 rounded hover:bg-yellow-100"
+                                                    >
+                                                        Lisää muistiinpano
+                                                    </button>
+                                                </div>
+
+                                                {/* Action buttons */}
+                                                <div className="border-t pt-1 mt-1 flex gap-2">
+                                                    {/* Common Action Buttons */}
+                                                    <div className="mt-4 pt-3 border-t flex flex-wrap gap-2">
+                                                        <button
+                                                            onClick={() => openEditModal(plot)}
+                                                            className="flex-1 px-2 py-1 text-[10px] font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100"
+                                                        >
+                                                            Muokkaa
+                                                        </button>
+                                                        {plot.status !== 'Mennyt' && (
+                                                            <button
+                                                                onClick={() => openMarkAsSoldModal(plot)}
+                                                                className="flex-1 px-2 py-1 text-[10px] font-medium text-green-700 bg-green-50 border border-green-200 rounded hover:bg-green-100"
+                                                            >
+                                                                Merkitse myydyksi
+                                                            </button>
+                                                        )}
+                                                        {plot.status !== 'Mennyt' && (
+                                                            <button
+                                                                onClick={() => openMarkAsOfferedModal(plot)}
+                                                                className="flex-1 px-2 py-1 text-[10px] font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100"
+                                                            >
+                                                                Merkitse tarjotuksi
+                                                            </button>
+                                                        )}
                                                     </div>
                                                 </div>
-                                            )}
-
-                                            <div className="flex gap-2 mt-1">
-                                                {getContactPersons(plot).length > 0 && (
-                                                    <button
-                                                        onClick={() => openLogContactModal(plot)}
-                                                        className="flex-1 px-2 py-1 text-[10px] font-medium text-white bg-green-600 rounded hover:bg-green-700 shadow-sm"
-                                                    >
-                                                        Uusi kontaktointi
-                                                    </button>
-                                                )}
-                                                <button
-                                                    onClick={() => openNoteModal(plot.id, plot.name)}
-                                                    className="flex-1 px-2 py-1 text-[10px] font-medium text-yellow-700 bg-yellow-50 border border-yellow-200 rounded hover:bg-yellow-100"
-                                                >
-                                                    Lisää muistiinpano
-                                                </button>
                                             </div>
-
-                                            {/* Action buttons */}
-                                            <div className="border-t pt-1 mt-1 flex gap-2">
-                                                <button
-                                                    onClick={() => openEditModal(plot)}
-                                                    className="flex-1 px-2 py-1 text-[10px] font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100"
-                                                >
-                                                    Muokkaa
-                                                </button>
-                                                {plot.status !== 'Mennyt' && (
-                                                    <button
-                                                        onClick={() => openMarkAsSoldModal(plot)}
-                                                        className="flex-1 px-2 py-1 text-[10px] font-medium text-green-700 bg-green-50 border border-green-200 rounded hover:bg-green-100"
-                                                    >
-                                                        Merkitse myydyksi
-                                                    </button>
-                                                )}
-                                                {plot.status !== 'Mennyt' && (
-                                                    <button
-                                                        onClick={() => openMarkAsOfferedModal(plot)}
-                                                        className="flex-1 px-2 py-1 text-[10px] font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100"
-                                                    >
-                                                        Merkitse tarjotuksi
-                                                    </button>
-                                                )}
-                                            </div>
-
-                                        </div>
+                                        )}
                                     </div>
                                 </Popup>
                             </Marker>
@@ -1399,7 +1463,6 @@ export default function MapComponent() {
                     <WMSUpdater cqlFilter={cqlFilter} opacity={wmsOpacity} layerRef={wmsLayerRef} />
 
                     {/* Custom Analysis Layers - outside Pane for UI visibility */}
-                    <SalesAnalysisLayer visible={showSalesAnalysis} />
                     <BusinessPlotsLayer
                         visible={showBusinessPlots}
                         filters={businessPlotFilters}
@@ -1430,6 +1493,13 @@ export default function MapComponent() {
                 location={newPlotLocation}
                 mode={editModalMode}
                 existingPlot={editingPlot}
+            />
+
+            <AddPastPlotModal
+                isOpen={isAddPastPlotModalOpen}
+                onClose={() => setIsAddPastPlotModalOpen(false)}
+                onSave={savePlot}
+                location={newPlotLocation}
             />
 
             <NoteModal

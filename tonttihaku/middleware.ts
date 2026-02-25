@@ -14,13 +14,6 @@ export function middleware(request: NextRequest) {
         return NextResponse.next();
     }
 
-    // ---------------------------------------------------------
-    // AUTHENTICATION DISABLED (Public Access Mode)
-    // ---------------------------------------------------------
-    // The following logic is commented out to allow public access.
-    // See docs/auth_backup.md for original implementation.
-
-    /*
     // 1. Redirect authenticated users away from login page
     if (isLoginPage && isAuth) {
         return NextResponse.redirect(new URL('/', request.url));
@@ -43,10 +36,8 @@ export function middleware(request: NextRequest) {
     // 4. Protect all other pages (root, etc)
     if (!isAuth) {
         const loginUrl = new URL('/login', request.url);
-        // clean any query params if needed, or keep to redirect back later
         return NextResponse.redirect(loginUrl);
     }
-    */
 
     return NextResponse.next();
 }
