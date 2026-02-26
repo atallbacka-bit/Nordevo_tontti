@@ -23,6 +23,7 @@ import L from 'leaflet';
 import FilterPanel from './FilterPanel';
 import AddPlotModal from './AddPlotModal';
 import AddPastPlotModal from './AddPastPlotModal';
+import SalesAnalysisLayer from './SalesAnalysisLayer';
 import BusinessPlotsLayer from './BusinessPlotsLayer';
 import { ZONING_TYPES, getZoningColor, getPlotColor, STATUS_OPTIONS } from '@/lib/constants';
 import { PlotData, PlotFilters, SalesFilters, BusinessPlotFilters, MarkSoldData, MarkOfferedData, ContactLog } from '@/types';
@@ -277,6 +278,7 @@ export default function MapComponent() {
     const [showMaapera, setShowMaapera] = useState(false);
     const [showMelu, setShowMelu] = useState(false);
     const [showKorkeus, setShowKorkeus] = useState(false);
+    const [showSalesAnalysis, setShowSalesAnalysis] = useState(false);
     const [showBusinessPlots, setShowBusinessPlots] = useState(false);
 
     const wmsLayerRef = useRef<L.TileLayer.WMS>(null);
@@ -351,6 +353,14 @@ export default function MapComponent() {
     const [showKiinteistot, setShowKiinteistot] = useState(false);
     const [showAsemakaavaInfo, setShowAsemakaavaInfo] = useState(false);
     const [popupInfo, setPopupInfo] = useState<{ lat: number, lng: number, content: string } | null>(null);
+    const [isPanelOpen, setIsPanelOpen] = useState(true);
+
+    // Close panel by default on mobile
+    useEffect(() => {
+        if (typeof window !== 'undefined' && window.innerWidth < 768) {
+            setIsPanelOpen(false);
+        }
+    }, []);
 
     // Plot search: marker refs for programmatic popup opening
     const markerRefs = useRef<Map<string, L.Marker>>(new Map());
@@ -799,6 +809,7 @@ export default function MapComponent() {
         if (layer === 'korkeus') setShowKorkeus(visible);
         if (layer === 'kiinteistot') setShowKiinteistot(visible);
         if (layer === 'asemakaava_info') setShowAsemakaavaInfo(visible);
+        if (layer === 'sales_analysis') setShowSalesAnalysis(visible);
         if (layer === 'business_plots') setShowBusinessPlots(visible);
 
         if (layer === 'sales') {
@@ -854,8 +865,10 @@ export default function MapComponent() {
     };
 
     return (
-        <div className="flex w-full h-full">
+        <div className="flex w-full h-full overflow-hidden">
             <FilterPanel
+                isOpen={isPanelOpen}
+                onToggle={() => setIsPanelOpen(!isPanelOpen)}
                 onSearch={handleSearch}
                 onOpacityChange={setWmsOpacity}
                 onLayerToggle={handleLayerToggle}
@@ -872,6 +885,7 @@ export default function MapComponent() {
                     edit_mode: editMode,
                     add_plot_mode: addPlotMode,
                     add_past_plot_mode: addPastPlotMode,
+                    sales_analysis: showSalesAnalysis,
                     business_plots: showBusinessPlots
                 }}
                 onPlotFiltersChange={setPlotFilters}
@@ -885,6 +899,18 @@ export default function MapComponent() {
                 onPlotSelect={handlePlotSelect}
             />
             <div className="flex-grow h-full relative z-0">
+                {!isPanelOpen && (
+                    <button
+                        onClick={() => setIsPanelOpen(true)}
+                        className="absolute top-4 left-4 z-[1000] bg-white p-3 rounded-xl shadow-lg border border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-all flex items-center gap-2 group"
+                        title="Näytä valikko"
+                    >
+                        <svg className="w-5 h-5 text-slate-600 group-hover:text-blue-600 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
+                        <span className="text-sm font-semibold text-slate-700 group-hover:text-blue-700 transition-colors hidden sm:block">Valikko</span>
+                    </button>
+                )}
                 <MapContainer center={[60.25, 24.8]} zoom={10} style={{ height: '100%', width: '100%' }}>
                     <MapEvents />
                     <FlyToPlot />
@@ -1485,6 +1511,7 @@ export default function MapComponent() {
                     <WMSUpdater cqlFilter={cqlFilter} opacity={wmsOpacity} layerRef={wmsLayerRef} />
 
                     {/* Custom Analysis Layers - outside Pane for UI visibility */}
+                    <SalesAnalysisLayer visible={showSalesAnalysis} />
                     <BusinessPlotsLayer
                         visible={showBusinessPlots}
                         filters={businessPlotFilters}

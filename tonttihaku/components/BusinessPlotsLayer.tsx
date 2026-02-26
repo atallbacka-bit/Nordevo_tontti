@@ -69,7 +69,7 @@ export default function BusinessPlotsLayer({
                 <div class="relative flex flex-col items-center group cursor-pointer transition-transform hover:scale-110 hover:z-50" style="transform-origin: bottom center;">
                     <div class="bg-slate-900 text-white shadow-xl rounded-lg px-2 py-1.5 flex flex-col items-center min-w-[50px] border-2 border-white ring-1 ring-black/5">
                         <span class="text-sm font-black leading-none tracking-tight">${usage}</span>
-                        <span class="text-[9px] font-bold text-white leading-tight mt-0.5 whitespace-nowrap">${buildRight} k-m²</span>
+                        <span class="text-[9px] font-bold text-white leading-tight mt-0.5 whitespace-nowrap">${buildRight ? `${buildRight} k-m²` : 'Ei ilm.'}</span>
                     </div>
                     <div class="w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[6px] border-t-slate-900 -mt-[1px] filter drop-shadow-sm"></div>
                 </div>
@@ -131,7 +131,7 @@ export default function BusinessPlotsLayer({
                 >
                     <div className="min-w-[240px]">
                         <div className="flex items-start justify-between mb-2">
-                            <h3 className="font-bold text-lg leading-tight pr-4">{selectedPlot.osoite}</h3>
+                            <h3 className="font-bold text-lg leading-tight pr-4">{selectedPlot.osoite || selectedPlot.jhs_tunnus || 'Yritystontti'}</h3>
                             <span className="bg-slate-100 text-slate-700 text-[10px] px-1.5 py-0.5 rounded font-mono border border-slate-200">{selectedPlot.kayttotarkoitusmerkinta}</span>
                         </div>
 
@@ -139,7 +139,7 @@ export default function BusinessPlotsLayer({
                             <div className="grid grid-cols-2 gap-2 text-xs">
                                 <div className="bg-slate-50 p-1.5 rounded border border-slate-100">
                                     <div className="text-slate-500 uppercase text-[10px] font-semibold">Rakennusoikeus</div>
-                                    <div className="font-bold text-slate-800 text-sm">{selectedPlot.rakennusoikeus} <span className="text-[10px] font-normal">k-m²</span></div>
+                                    <div className="font-bold text-slate-800 text-sm">{selectedPlot.rakennusoikeus ? `${selectedPlot.rakennusoikeus} ` : 'Ei ilm. '}{selectedPlot.rakennusoikeus && <span className="text-[10px] font-normal">k-m²</span>}</div>
                                 </div>
                                 <div className="bg-slate-50 p-1.5 rounded border border-slate-100">
                                     <div className="text-slate-500 uppercase text-[10px] font-semibold">Pinta-ala</div>
