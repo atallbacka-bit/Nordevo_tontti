@@ -34,6 +34,7 @@ import MarkOfferedModal from './MarkOfferedModal';
 import EditContactInfoModal from './EditContactInfoModal';
 import LogContactModal from './LogContactModal';
 import HistoryModal from './HistoryModal';
+import AddressSearch, { AddressSearchResult } from './AddressSearch';
 
 // Parse zonings from JSON string or legacy format
 function parseZonings(plot: PlotData): { type: string, buildingRight: number }[] {
@@ -373,6 +374,8 @@ export default function MapComponent() {
     // salesData is derived from plotsData in render/useMemo
     const [apartmentData, setApartmentData] = useState<any[]>([]);
 
+    const [searchMarker, setSearchMarker] = useState<AddressSearchResult | null>(null);
+
     // Fetch plots data (contains both active and sold plots)
     useEffect(() => {
         if (showPlots || showSales) {
@@ -487,6 +490,17 @@ export default function MapComponent() {
         if (!showPlots) setShowPlots(true);
         setSelectedPlotId(plot.id);
     };
+
+    // Helper component to fly to an address search result
+    function FlyToSearch() {
+        const map = useMap();
+        useEffect(() => {
+            if (searchMarker) {
+                map.flyTo([parseFloat(searchMarker.lat), parseFloat(searchMarker.lon)], 16, { animate: true, duration: 1.5 });
+            }
+        }, [searchMarker, map]);
+        return null;
+    }
 
     // Helper component to fly to a selected plot and open its popup
     function FlyToPlot() {
@@ -911,9 +925,18 @@ export default function MapComponent() {
                         <span className="text-sm font-semibold text-slate-700 group-hover:text-blue-700 transition-colors hidden sm:block">Valikko</span>
                     </button>
                 )}
+
+                <AddressSearch onSelect={setSearchMarker} />
+
                 <MapContainer center={[60.25, 24.8]} zoom={10} style={{ height: '100%', width: '100%' }}>
                     <MapEvents />
                     <FlyToPlot />
+                    <FlyToSearch />
+                    {searchMarker && (
+                        <Marker position={[parseFloat(searchMarker.lat), parseFloat(searchMarker.lon)]}>
+                            <Popup>{searchMarker.display_name}</Popup>
+                        </Marker>
+                    )}
                     {popupInfo && (
                         <Popup
                             position={[popupInfo.lat, popupInfo.lng]}
