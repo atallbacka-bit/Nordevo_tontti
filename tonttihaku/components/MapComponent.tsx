@@ -395,6 +395,11 @@ export default function MapComponent() {
             if (sharedPlotId) {
                 setShowPlots(true); // Ensure plots are loaded
                 setSelectedPlotId(sharedPlotId);
+
+                // Remove the parameter from the URL so it doesn't trigger again on re-renders/filter changes
+                params.delete('plot');
+                const newUrl = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+                window.history.replaceState({}, '', newUrl);
             }
         }
     }, []);
