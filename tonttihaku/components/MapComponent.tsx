@@ -551,6 +551,9 @@ export default function MapComponent() {
                 const marker = markerRefs.current.get(selectedPlotId);
                 if (marker) {
                     marker.openPopup();
+                    // Clear the selection so that modifying the plot (which updates plotsData) 
+                    // doesn't cause the map to fly back here and re-open the popup.
+                    setSelectedPlotId(null);
                 } else if (attempts < maxAttempts) {
                     setTimeout(tryOpenPopup, 500); // Try again in 500ms
                 }
