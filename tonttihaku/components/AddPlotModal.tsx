@@ -27,7 +27,7 @@ export default function AddPlotModal({
     const [formData, setFormData] = useState({
         name: '',
         area: '',
-        priceEst: '',
+        pricePerRight: '',
         desc: '',
         seller: '',
         status: 'Vapaa',
@@ -103,7 +103,7 @@ export default function AddPlotModal({
                 setFormData({
                     name: existingPlot.name || '',
                     area: existingPlot.area?.toString() || '',
-                    priceEst: existingPlot.priceEst?.toString() || '',
+                    pricePerRight: existingPlot.pricePerRight?.toString() || (existingPlot.priceEst && existingPlot.buildingRight ? Math.round(existingPlot.priceEst / existingPlot.buildingRight).toString() : ''),
                     desc: existingPlot.desc || '',
                     seller: existingPlot.seller || '',
                     status: existingPlot.status || 'Vapaa',
@@ -124,7 +124,7 @@ export default function AddPlotModal({
             } else {
                 // Reset for add mode
                 setFormData({
-                    name: '', area: '', priceEst: '',
+                    name: '', area: '', pricePerRight: '',
                     desc: '', seller: '', status: 'Vapaa',
                     deadline: '', address: '', kunta: 'Helsinki', kiinteistotunnus: '', createdBy: username || '', updatedBy: '',
                     buyer: '', finalPrice: '', soldDate: new Date().toISOString().split('T')[0],
@@ -160,7 +160,8 @@ export default function AddPlotModal({
             zonings: JSON.stringify(zonings),
             buildingRight: totalBuildingRight,
             area: parseInt(formData.area) || 0,
-            priceEst: parseInt(formData.priceEst) || 0,
+            priceEst: totalBuildingRight * (parseInt(formData.pricePerRight) || 0),
+            pricePerRight: parseInt(formData.pricePerRight) || 0,
             contactPersons: JSON.stringify(validContacts),
             // Maintain legacy for compatibility if needed, but primary is now contactPersons
             contactPerson: validContacts[0]?.name || '',
@@ -338,9 +339,21 @@ export default function AddPlotModal({
                         </div>
 
                         {/* Price estimate - essential */}
-                        <div className="col-span-2">
-                            <label className="block text-xs font-semibold text-gray-700 uppercase">Hinta-arvio (€)</label>
-                            <input name="priceEst" type="number" value={formData.priceEst} onChange={handleChange} className="w-full border rounded p-2 text-sm" placeholder="2000000" />
+                        <div className="col-span-2 grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Kem hinta-arvio *</label>
+                                <div className="relative">
+                                    <input name="pricePerRight" type="number" required value={formData.pricePerRight} onChange={handleChange}
+                                        className="w-full border rounded p-2 text-sm pr-12" placeholder="0" />
+                                    <span className="absolute right-3 top-2 text-xs text-gray-500">€/k-m²</span>
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Laskettu kokonaisarvio</label>
+                                <div className="w-full border rounded p-2 text-sm bg-gray-100 text-gray-600">
+                                    {(totalBuildingRight * (parseInt(formData.pricePerRight) || 0)).toLocaleString()} €
+                                </div>
+                            </div>
                         </div>
 
                         {/* Priority field - essential */}
