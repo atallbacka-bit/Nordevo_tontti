@@ -1084,129 +1084,47 @@ export default function MapComponent() {
                         const priceToUse = (plot.status === 'Tarjottu' && plot.offerPrice) ? plot.offerPrice : plot.priceEst;
                         const unitPrice = (priceToUse && totalBR) ? Math.round(priceToUse / totalBR) : null;
 
-                        // Status determination
-                        const isCompetition = plot.status === 'Kilpailussa';
-                        const isOffered = plot.status === 'Tarjottu';
+                        // Style configuration — all markers use unified pill shape, only color varies
+                        const plotColor = getPlotColor(plot.status, zonings[0]?.type || 'AK');
                         const isSold = plot.status === 'Mennyt';
 
-                        // Base styles
-                        let markerHtml = '';
+                        // Base styles — unified pill for all statuses
+                        const pillPadding = '5px 9px';
+                        const pillFontSize = Math.max(10, markerSize / 4);
+                        const pillOpacity = isSold ? '0.65' : '1';
+                        const pillShadowColor = isSold ? 'rgba(0,0,0,0.15)' : 'rgba(0,0,0,0.25)';
+                        const pillFontWeight = isSold ? 'normal' : 'bold';
+
+                        let markerHtml = `<div style="
+                            background-color: ${plotColor};
+                            color: white;
+                            padding: ${pillPadding};
+                            border-radius: 9999px;
+                            border: 2px solid white;
+                            box-shadow: 0 2px 6px ${pillShadowColor};
+                            display: flex;
+                            flex-direction: column;
+                            justify-content: center;
+                            align-items: center;
+                            font-weight: ${pillFontWeight};
+                            font-size: ${pillFontSize}px;
+                            min-width: ${markerSize}px;
+                            text-align: center;
+                            opacity: ${pillOpacity};
+                            white-space: nowrap;
+                        ">
+                            <div style="line-height:1.1;">${label}</div>
+                            <div style="font-size:0.78em; opacity:0.9; margin-top:1px;">${totalBR.toLocaleString()}</div>
+                            ${isSold && plot.pricePerRight && plot.pricePerRight > 0
+                                ? `<div style='font-size:0.72em; opacity:0.8; margin-top:1px;'>${plot.pricePerRight.toLocaleString()} €</div>`
+                                : !isSold && unitPrice
+                                    ? `<div style='font-size:0.72em; background:rgba(0,0,0,0.15); padding:0 4px; border-radius:20px; margin-top:2px;'>${unitPrice.toLocaleString()} €</div>`
+                                    : ''
+                            }
+                        </div>`;
+
                         let anchor: [number, number] = [(markerSize + 10) / 2, (markerSize + 10) / 2];
                         let size: [number, number] = [markerSize + 10, markerSize + 10];
-
-                        // Style configuration based on status
-                        const plotColor = getPlotColor(plot.status, zonings[0]?.type || 'AK');
-
-                        if (isCompetition) {
-                            // Competition: Red Circle with border
-                            markerHtml = `<div style="
-                                background-color: ${plotColor};
-                                color: white;
-                                width: ${markerSize}px;
-                                height: ${markerSize}px;
-                                border-radius: 50%;
-                                border: 3px solid white;
-                                box-shadow: 0 4px 6px rgba(220, 38, 38, 0.4);
-                                display: flex;
-                                flex-direction: column;
-                                justify-content: center;
-                                align-items: center;
-                                font-weight: bold;
-                                font-size: ${Math.max(10, markerSize / 3.5)}px;
-                            ">
-                                <div style="line-height:1;">${label}</div>
-                                <div style="font-size:0.7em; opacity:0.9;">${totalBR.toLocaleString()}</div>
-                            </div>`;
-                        } else if (isOffered) {
-                            // Offered: Green Pill with dashed border
-                            markerHtml = `<div style="
-                                background-color: ${plotColor};
-                                color: white;
-                                padding: 6px 10px;
-                                border-radius: 9999px;
-                                border: 2px dashed white;
-                                box-shadow: 0 4px 6px rgba(22, 163, 74, 0.4);
-                                display: flex;
-                                flex-direction: column;
-                                justify-content: center;
-                                align-items: center;
-                                font-weight: bold;
-                                font-size: ${Math.max(10, markerSize / 4)}px;
-                                min-width: ${markerSize + 10}px;
-                                text-align: center;
-                                transform: scale(1.05);
-                            ">
-                                <div>${label}</div>
-                                <div style="font-size:0.8em; opacity:0.9;">${totalBR.toLocaleString()}</div>
-                                ${unitPrice ? `<div style='font-size:0.75em; background:rgba(0,0,0,0.15); padding:0 3px; border-radius:3px; margin-top:2px;'>${unitPrice.toLocaleString()} €</div>` : ''}
-                            </div>`;
-                        } else if (isSold) {
-                            // Sold: Gray/Transparent with Data
-                            markerHtml = `<div style="
-                                background-color: ${plotColor};
-                                color: white;
-                                padding: 4px 6px;
-                                border-radius: 6px;
-                                border: 1px solid rgba(255,255,255,0.8);
-                                box-shadow: none;
-                                display: flex;
-                                flex-direction: column;
-                                justify-content: center;
-                                align-items: center;
-                                font-weight: normal;
-                                font-size: ${Math.max(9, markerSize / 4.5)}px;
-                                min-width: ${markerSize}px;
-                                text-align: center;
-                                opacity: 0.9;
-                            ">
-                                <div>${label}</div>
-                                <div style="font-size:0.8em; opacity:0.8;">${totalBR.toLocaleString()}</div>
-                                ${(plot.pricePerRight && plot.pricePerRight > 0) ? `<div style='font-size:0.75em; opacity:0.7; margin-top:1px;'>${plot.pricePerRight.toLocaleString()} €</div>` : ''}
-                            </div>`;
-                        } else if (plot.status === 'Pidossa') {
-                            // Pidossa: Purple, rounded square (distinct shape/style)
-                            markerHtml = `<div style="
-                                background-color: ${plotColor};
-                                color: white;
-                                padding: 5px;
-                                border-radius: 4px; /* Slightly sharper corners than Vapaa */
-                                border: 2px solid white;
-                                box-shadow: 0 2px 4px rgba(88, 28, 135, 0.3);
-                                display: flex;
-                                flex-direction: column;
-                                justify-content: center;
-                                align-items: center;
-                                font-weight: bold;
-                                font-size: ${Math.max(10, markerSize / 4)}px;
-                                min-width: ${markerSize}px;
-                                text-align: center;
-                            ">
-                                <div>${label}</div>
-                                <div style="font-size:0.8em; opacity:0.95;">${totalBR.toLocaleString()}</div>
-                            </div>`;
-                        } else {
-                            // Vapaa (Default): Zoning Color (Blues) Square with rounded corners
-                            markerHtml = `<div style="
-                                background-color: ${plotColor};
-                                color: white;
-                                padding: 4px 6px;
-                                border-radius: 6px;
-                                border: 2px solid white;
-                                box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-                                display: flex;
-                                flex-direction: column;
-                                justify-content: center;
-                                align-items: center;
-                                font-weight: bold;
-                                font-size: ${Math.max(10, markerSize / 4)}px;
-                                min-width: ${markerSize}px;
-                                text-align: center;
-                            ">
-                                <div>${label}</div>
-                                <div style="font-size:0.8em; opacity:0.95;">${totalBR.toLocaleString()}</div>
-                                ${unitPrice ? `<div style='font-size:0.75em; background:rgba(0,0,0,0.15); padding:0 3px; border-radius:3px; margin-top:2px;'>${unitPrice.toLocaleString()} €</div>` : ''}
-                            </div>`;
-                        }
 
                         return (
                             <Marker
