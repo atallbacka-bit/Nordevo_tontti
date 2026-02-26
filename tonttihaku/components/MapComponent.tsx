@@ -182,6 +182,16 @@ if (typeof window !== 'undefined') {
     L.Icon.Default.mergeOptions({ iconRetinaUrl, iconUrl, shadowUrl });
 }
 
+const ShareIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
+        <circle cx="18" cy="5" r="3"></circle>
+        <circle cx="6" cy="12" r="3"></circle>
+        <circle cx="18" cy="19" r="3"></circle>
+        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+    </svg>
+);
+
 // Helper to update WMS params
 function WMSUpdater({ cqlFilter, opacity, layerRef }: { cqlFilter: string, opacity: number, layerRef: React.RefObject<L.TileLayer.WMS> }) {
     const map = useMap();
@@ -366,6 +376,7 @@ export default function MapComponent() {
     // Plot search: marker refs for programmatic popup opening
     const markerRefs = useRef<Map<string, L.Marker>>(new Map());
     const [selectedPlotId, setSelectedPlotId] = useState<string | null>(null);
+    const [copiedId, setCopiedId] = useState<string | null>(null);
 
     // Sales State
     const [showSales, setShowSales] = useState(false);
@@ -375,6 +386,18 @@ export default function MapComponent() {
     const [apartmentData, setApartmentData] = useState<any[]>([]);
 
     const [searchMarker, setSearchMarker] = useState<AddressSearchResult | null>(null);
+
+    // Check for shared plot in URL on mount
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            const sharedPlotId = params.get('plot');
+            if (sharedPlotId) {
+                setShowPlots(true); // Ensure plots are loaded
+                setSelectedPlotId(sharedPlotId);
+            }
+        }
+    }, []);
 
     // Fetch plots data (contains both active and sold plots)
     useEffect(() => {
@@ -1409,6 +1432,21 @@ export default function MapComponent() {
                                                 <div className="border-t pt-1 mt-1 flex gap-2">
                                                     {/* Common Action Buttons */}
                                                     <div className="mt-4 pt-3 border-t flex flex-wrap gap-2">
+                                                        <button
+                                                            onClick={async () => {
+                                                                const url = `${window.location.origin}${window.location.pathname}?plot=${plot.id}`;
+                                                                try {
+                                                                    await navigator.clipboard.writeText(url);
+                                                                    setCopiedId(plot.id);
+                                                                    setTimeout(() => setCopiedId(null), 2000);
+                                                                } catch (err) {
+                                                                    console.error('Failed to copy link', err);
+                                                                }
+                                                            }}
+                                                            className="flex-1 flex items-center justify-center px-2 py-1 text-[10px] font-medium text-purple-700 bg-purple-50 border border-purple-200 rounded hover:bg-purple-100"
+                                                        >
+                                                            {copiedId === plot.id ? 'Kopioitu!' : <><ShareIcon /> Jaa</>}
+                                                        </button>
                                                         <button
                                                             onClick={() => openEditModal(plot)}
                                                             className="flex-1 px-2 py-1 text-[10px] font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100"
