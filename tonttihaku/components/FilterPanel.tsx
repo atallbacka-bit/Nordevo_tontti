@@ -442,32 +442,57 @@ export default function FilterPanel({
                                         <div>
                                             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Tila</label>
                                             <div className="grid grid-cols-2 gap-2">
-                                                {STATUS_OPTIONS.filter(opt => opt.value !== '').map(opt => (
-                                                    <label key={opt.value} className={`
+                                                {STATUS_OPTIONS.filter(opt => opt.value !== '').map(opt => {
+                                                    const isSelected = plotStatus.includes(opt.value);
+
+                                                    // Map status to specific Tailwind classes for the selected state
+                                                    let selectedClasses = 'bg-white border-blue-200 text-slate-900 shadow-sm ring-1 ring-blue-100'; // Fallback
+
+                                                    if (isSelected) {
+                                                        switch (opt.value) {
+                                                            case 'Vapaa':
+                                                                selectedClasses = 'bg-blue-50 border-blue-200 text-slate-900 shadow-sm ring-1 ring-blue-100';
+                                                                break;
+                                                            case 'Kilpailussa':
+                                                                selectedClasses = 'bg-red-50 border-red-200 text-slate-900 shadow-sm ring-1 ring-red-100';
+                                                                break;
+                                                            case 'Tarjottu':
+                                                                selectedClasses = 'bg-green-50 border-green-200 text-slate-900 shadow-sm ring-1 ring-green-100';
+                                                                break;
+                                                            case 'Mennyt':
+                                                                selectedClasses = 'bg-gray-100 border-gray-300 text-slate-900 shadow-sm ring-1 ring-gray-200';
+                                                                break;
+                                                            case 'Pidossa':
+                                                                selectedClasses = 'bg-purple-50 border-purple-200 text-slate-900 shadow-sm ring-1 ring-purple-100';
+                                                                break;
+                                                        }
+                                                    }
+
+                                                    return (
+                                                        <label key={opt.value} className={`
                                                     flex items-center justify-center px-3 py-2 rounded-lg cursor-pointer border text-sm transition-all
-                                                    ${plotStatus.includes(opt.value)
-                                                            ? 'bg-white border-blue-200 text-blue-700 shadow-sm ring-1 ring-blue-100'
-                                                            : 'bg-transparent border-transparent hover:bg-slate-100 text-slate-600'}
+                                                    ${isSelected ? selectedClasses : 'bg-transparent border-transparent hover:bg-slate-100 text-slate-600'}
                                                 `}>
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={plotStatus.includes(opt.value)}
-                                                            onChange={(e) => {
-                                                                let newStatus = [];
-                                                                if (e.target.checked) {
-                                                                    newStatus = [...(plotStatus ? plotStatus.split(',') : []), opt.value];
-                                                                } else {
-                                                                    newStatus = (plotStatus ? plotStatus.split(',') : []).filter(s => s !== opt.value);
-                                                                }
-                                                                const statusStr = newStatus.join(',');
-                                                                setPlotStatus(statusStr);
-                                                                updatePlotFilters(plotZoningTypes, plotBRMin, plotBRMax, statusStr, plotKunnat, plotPriorities);
-                                                            }}
-                                                            className="hidden"
-                                                        />
-                                                        <span className="font-medium">{opt.label}</span>
-                                                    </label>
-                                                ))}
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={isSelected}
+                                                                onChange={(e) => {
+                                                                    let newStatus = [];
+                                                                    if (e.target.checked) {
+                                                                        newStatus = [...(plotStatus ? plotStatus.split(',') : []), opt.value];
+                                                                    } else {
+                                                                        newStatus = (plotStatus ? plotStatus.split(',') : []).filter(s => s !== opt.value);
+                                                                    }
+                                                                    const statusStr = newStatus.join(',');
+                                                                    setPlotStatus(statusStr);
+                                                                    updatePlotFilters(plotZoningTypes, plotBRMin, plotBRMax, statusStr, plotKunnat, plotPriorities);
+                                                                }}
+                                                                className="hidden"
+                                                            />
+                                                            <span className="font-medium">{opt.label}</span>
+                                                        </label>
+                                                    )
+                                                })}
                                             </div>
                                         </div>
 
