@@ -532,18 +532,32 @@ export default function MapComponent() {
             if (!selectedPlotId) return;
             const plot = plotsData.find(p => p.id === selectedPlotId);
             if (!plot || !plot.lat || !plot.lng) {
-                setSelectedPlotId(null);
+                // Don't clear selectedPlotId here, wait for plotsData to load
                 return;
             }
             map.flyTo([plot.lat, plot.lng], 16, { duration: 0.8 });
-            // Open popup after fly animation completes
-            const timer = setTimeout(() => {
+
+            // Try to open the popup multiple times as the marker might take a moment to render
+            let attempts = 0;
+            const maxAttempts = 5;
+
+            const tryOpenPopup = () => {
+                attempts++;
                 const marker = markerRefs.current.get(selectedPlotId);
-                if (marker) marker.openPopup();
-                // We keep selectedPlotId active to override filters until user clears the search
-            }, 900);
-            return () => clearTimeout(timer);
-        }, [selectedPlotId, map]);
+                if (marker) {
+                    marker.openPopup();
+                } else if (attempts < maxAttempts) {
+                    setTimeout(tryOpenPopup, 500); // Try again in 500ms
+                }
+            };
+
+            // Start trying after fly animation is mostly done
+            const timer = setTimeout(tryOpenPopup, 900);
+
+            return () => {
+                clearTimeout(timer);
+            };
+        }, [selectedPlotId, map, plotsData]);
         return null;
     }
 
