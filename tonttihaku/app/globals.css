@@ -47,6 +47,103 @@ body {
 .leaflet-container {
     font-family: 'Inter', sans-serif !important;
 }
+
+/* Plot markers — quiet white pills with status dot */
+.custom-plot-icon {
+  background: transparent;
+  border: none;
+}
+.plot-pin-center {
+  position: absolute;
+  transform: translate(-50%, -50%);
+}
+.plot-pill {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 9999px;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.18);
+  padding: 3px 9px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #0f172a;
+  white-space: nowrap;
+  line-height: 1.2;
+  font-family: 'Inter', system-ui, sans-serif;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.plot-pill-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 9999px;
+  flex: none;
+}
+.plot-pill-zone {
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 1px 5px;
+  border-radius: 5px;
+  flex: none;
+  line-height: 1.3;
+}
+.plot-pill-info {
+  font-size: 10px;
+  font-weight: 600;
+  border-left: 1px solid #e2e8f0;
+  padding-left: 5px;
+}
+.plot-sold {
+  opacity: 0.55;
+}
+.plot-cluster {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 9999px;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.18), 0 0 0 5px rgba(37, 99, 235, 0.12);
+  font-size: 12px;
+  font-weight: 700;
+  color: #0f172a;
+  font-family: 'Inter', system-ui, sans-serif;
+  transition: transform 0.12s ease;
+}
+.leaflet-marker-icon.custom-plot-icon:hover {
+  z-index: 9999 !important;
+}
+.custom-plot-icon:hover .plot-pill {
+  transform: scale(1.07);
+  box-shadow: 0 3px 10px rgba(15, 23, 42, 0.25);
+}
+.custom-plot-icon:hover .plot-cluster {
+  transform: scale(1.07);
+}
+
+/* Plot card popup (Tunnetut tontit) */
+.plot-popup .leaflet-popup-content-wrapper {
+  border-radius: 12px;
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.2), 0 2px 8px rgba(15, 23, 42, 0.1);
+}
+.plot-popup .leaflet-popup-content {
+  width: 300px !important;
+}
+.plot-popup .leaflet-popup-close-button {
+  top: 7px;
+  right: 9px;
+  color: #94a3b8;
+  font-size: 16px;
+  font-weight: 400;
+  z-index: 10;
+}
+.plot-popup .leaflet-popup-close-button:hover {
+  color: #475569;
+  background: transparent;
+}
 .wms-red-tint img {
   filter: sepia(1) saturate(10) hue-rotate(-20deg) brightness(1);
 }

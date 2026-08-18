@@ -1,8 +1,17 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { ZONING_TYPES, STATUS_OPTIONS, MATERIAL_OPTIONS } from '@/lib/constants';
+import { ZONING_TYPES, STATUS_OPTIONS, MATERIAL_OPTIONS, getStatusAccent } from '@/lib/constants';
 import { PlotData, PlotFilters, SalesFilters, BusinessPlotFilters } from '@/types';
+
+// iOS-style switch, visual only — pair with a hidden checkbox input
+function Switch({ on }: { on: boolean }) {
+    return (
+        <span className={`relative inline-flex h-5 w-9 flex-none items-center rounded-full transition-colors ${on ? 'bg-blue-600' : 'bg-slate-300'}`}>
+            <span className={`h-3.5 w-3.5 rounded-full bg-white shadow-sm transform transition-transform ${on ? 'translate-x-[18px]' : 'translate-x-[3px]'}`} />
+        </span>
+    );
+}
 
 interface FilterState {
     laskvar_ak_min: string;
@@ -327,7 +336,7 @@ export default function FilterPanel({
                 fixed md:relative left-0 top-0
                 w-[85vw] sm:w-[350px] md:w-[400px]
                 h-full
-                flex-shrink-0 bg-white/95 backdrop-blur-md flex flex-col border-r border-slate-200 shadow-2xl z-[1000]
+                flex-shrink-0 bg-white flex flex-col border-r border-slate-200 shadow-2xl z-[1000]
                 transition-all duration-300 ease-in-out
                 ${isOpen ? 'translate-x-0 ml-0' : '-translate-x-full md:-ml-[400px] shadow-none'}
             `}>
@@ -344,51 +353,48 @@ export default function FilterPanel({
                     </button>
                 </div>
 
-                {/* Tabs */}
-                <div className="flex border-b border-slate-100 px-6 pt-6 pb-2 gap-4 pr-14">
-                    <button
-                        onClick={() => setActiveTab('search')}
-                        className={`flex-1 pb-2 text-center text-sm font-medium transition-all relative ${activeTab === 'search'
-                            ? 'text-slate-900 border-b-2 border-slate-900'
-                            : 'text-slate-500 hover:text-slate-700'
-                            }`}
-                    >
-                        Haku
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('analysis')}
-                        className={`flex-1 pb-2 text-center text-sm font-medium transition-all relative ${activeTab === 'analysis'
-                            ? 'text-slate-900 border-b-2 border-slate-900'
-                            : 'text-slate-500 hover:text-slate-700'
-                            }`}
-                    >
-                        Analyysi
-                    </button>
+                {/* Header + tabs */}
+                <div className="px-5 pt-5 pb-4 border-b border-slate-100">
+                    <h1 className="text-lg font-bold text-slate-900 tracking-tight leading-tight">Tonttihaku</h1>
+                    <p className="text-xs text-slate-500 mb-3.5">Pääkaupunkiseudun tonttivaranto</p>
+                    <div className="flex bg-slate-100 rounded-lg p-1 mr-10">
+                        <button
+                            onClick={() => setActiveTab('search')}
+                            className={`flex-1 py-1.5 text-center text-[13px] font-semibold rounded-md transition-all ${activeTab === 'search'
+                                ? 'bg-white text-slate-900 shadow-sm'
+                                : 'text-slate-500 hover:text-slate-700'
+                                }`}
+                        >
+                            Haku
+                        </button>
+                        <button
+                            onClick={() => setActiveTab('analysis')}
+                            className={`flex-1 py-1.5 text-center text-[13px] font-semibold rounded-md transition-all ${activeTab === 'analysis'
+                                ? 'bg-white text-slate-900 shadow-sm'
+                                : 'text-slate-500 hover:text-slate-700'
+                                }`}
+                        >
+                            Analyysi
+                        </button>
+                    </div>
                 </div>
 
                 {/* Content */}
-                <div className="p-6 overflow-y-auto flex-grow scrollbar-thin scrollbar-thumb-slate-300">
-                    <h1 className="text-2xl font-bold text-slate-900 mb-1 tracking-tight">Tonttihaku</h1>
-                    <p className="text-sm text-slate-500 mb-6">Helsingin kaupungin tonttivaranto</p>
+                <div className="px-5 py-5 overflow-y-auto flex-grow">
 
                     {activeTab === 'search' && (
                         <div className="space-y-6">
                             {/* TUNNETUT TONTIT SECTION */}
-                            <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 shadow-sm">
-                                <label className="flex items-center justify-between mb-3 cursor-pointer group">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-xl">📍</span>
-                                        <h3 className="text-sm font-bold text-slate-900 group-hover:text-blue-700 transition-colors">Tunnetut tontit</h3>
-                                    </div>
-                                    <div className="relative inline-block w-10 h-6 align-middle select-none transition duration-200 ease-in">
-                                        <input
-                                            type="checkbox"
-                                            checked={layerStates.plots}
-                                            onChange={(e) => toggleLayer('plots', e)}
-                                            className="toggle-checkbox absolute block w-4 h-4 rounded-full bg-white border-4 appearance-none cursor-pointer translate-x-1 top-1 transition-transform checked:translate-x-5 checked:border-blue-600"
-                                        />
-                                        <span className={`toggle-label block overflow-hidden h-6 rounded-full cursor-pointer transition-colors ${layerStates.plots ? 'bg-blue-600' : 'bg-slate-300'}`}></span>
-                                    </div>
+                            <div>
+                                <label className="flex items-center justify-between cursor-pointer group">
+                                    <h3 className="text-sm font-semibold text-slate-900">Tunnetut tontit</h3>
+                                    <input
+                                        type="checkbox"
+                                        checked={layerStates.plots}
+                                        onChange={(e) => toggleLayer('plots', e)}
+                                        className="hidden"
+                                    />
+                                    <Switch on={layerStates.plots} />
                                 </label>
 
                                 {layerStates.plots && (
@@ -396,7 +402,9 @@ export default function FilterPanel({
                                         {/* Plot Search Bar */}
                                         <div ref={searchRef} className="relative">
                                             <div className="relative">
-                                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none">🔍</span>
+                                                <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 10.5a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z" />
+                                                </svg>
                                                 <input
                                                     type="text"
                                                     placeholder="Etsi tontteja..."
@@ -409,7 +417,7 @@ export default function FilterPanel({
                                                     }}
                                                     onFocus={() => { if (searchQuery.length >= 2) setSearchOpen(true); }}
                                                     onKeyDown={(e) => { if (e.key === 'Escape') { setSearchOpen(false); (e.target as HTMLInputElement).blur(); } }}
-                                                    className="w-full pl-9 pr-8 py-2.5 text-sm bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400"
+                                                    className="w-full pl-9 pr-8 py-2 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all placeholder:text-slate-400"
                                                 />
                                                 {searchQuery && (
                                                     <button
@@ -453,39 +461,27 @@ export default function FilterPanel({
                                         </div>
                                         {/* Status Filter */}
                                         <div>
-                                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Tila</label>
-                                            <div className="grid grid-cols-2 gap-2">
+                                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-[0.07em] mb-2">Tila</label>
+                                            <div className="flex flex-wrap gap-1.5">
                                                 {STATUS_OPTIONS.filter(opt => opt.value !== '').map(opt => {
                                                     const isSelected = plotStatus.includes(opt.value);
+                                                    const accent = getStatusAccent(opt.value);
 
-                                                    // Map status to specific Tailwind classes for the selected state
-                                                    let selectedClasses = 'bg-white border-blue-200 text-slate-900 shadow-sm ring-1 ring-blue-100'; // Fallback
-
-                                                    if (isSelected) {
-                                                        switch (opt.value) {
-                                                            case 'Vapaa':
-                                                                selectedClasses = 'bg-blue-50 border-blue-200 text-slate-900 shadow-sm ring-1 ring-blue-100';
-                                                                break;
-                                                            case 'Kilpailussa':
-                                                                selectedClasses = 'bg-red-50 border-red-200 text-slate-900 shadow-sm ring-1 ring-red-100';
-                                                                break;
-                                                            case 'Tarjottu':
-                                                                selectedClasses = 'bg-green-50 border-green-200 text-slate-900 shadow-sm ring-1 ring-green-100';
-                                                                break;
-                                                            case 'Mennyt':
-                                                                selectedClasses = 'bg-gray-100 border-gray-300 text-slate-900 shadow-sm ring-1 ring-gray-200';
-                                                                break;
-                                                            case 'Pidossa':
-                                                                selectedClasses = 'bg-purple-50 border-purple-200 text-slate-900 shadow-sm ring-1 ring-purple-100';
-                                                                break;
-                                                        }
+                                                    let selectedClasses = 'bg-blue-50 border-blue-300 text-blue-800';
+                                                    switch (opt.value) {
+                                                        case 'Vapaa': selectedClasses = 'bg-blue-50 border-blue-300 text-blue-800'; break;
+                                                        case 'Kilpailussa': selectedClasses = 'bg-red-50 border-red-300 text-red-800'; break;
+                                                        case 'Tarjottu': selectedClasses = 'bg-green-50 border-green-300 text-green-800'; break;
+                                                        case 'Mennyt': selectedClasses = 'bg-slate-100 border-slate-300 text-slate-700'; break;
+                                                        case 'Pidossa': selectedClasses = 'bg-purple-50 border-purple-300 text-purple-800'; break;
                                                     }
 
                                                     return (
                                                         <label key={opt.value} className={`
-                                                    flex items-center justify-center px-3 py-2 rounded-lg cursor-pointer border text-sm transition-all
-                                                    ${isSelected ? selectedClasses : 'bg-transparent border-transparent hover:bg-slate-100 text-slate-600'}
-                                                `}>
+                                                            inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full cursor-pointer border text-xs font-semibold transition-all
+                                                            ${isSelected ? selectedClasses : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300 hover:text-slate-700'}
+                                                        `}>
+                                                            <span className="w-2 h-2 rounded-full flex-none" style={{ background: accent, opacity: isSelected ? 1 : 0.4 }} />
                                                             <input
                                                                 type="checkbox"
                                                                 checked={isSelected}
@@ -502,7 +498,7 @@ export default function FilterPanel({
                                                                 }}
                                                                 className="hidden"
                                                             />
-                                                            <span className="font-medium">{opt.label}</span>
+                                                            {opt.label}
                                                         </label>
                                                     )
                                                 })}
@@ -511,7 +507,7 @@ export default function FilterPanel({
 
                                         {/* Kunta Filter */}
                                         <div className="relative">
-                                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Kunta</label>
+                                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-[0.07em] mb-2">Kunta</label>
                                             <button
                                                 type="button"
                                                 onClick={() => setKuntaDropdownOpen(!kuntaDropdownOpen)}
@@ -555,35 +551,43 @@ export default function FilterPanel({
 
                                         {/* Zoning Type Filter */}
                                         <div>
-                                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Kaavatyypit</label>
+                                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-[0.07em] mb-2">Kaavatyypit</label>
                                             <div className="flex flex-wrap gap-1.5">
-                                                {ZONING_TYPES.map(z => (
-                                                    <button
-                                                        key={z.code}
-                                                        type="button"
-                                                        onClick={() => togglePlotZoning(z.code)}
-                                                        className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all border ${plotZoningTypes.includes(z.code)
-                                                            ? 'bg-slate-800 text-white border-slate-800 shadow-sm'
-                                                            : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                                                            }`}
-                                                    >
-                                                        {z.code}
-                                                    </button>
-                                                ))}
+                                                {ZONING_TYPES.map(z => {
+                                                    const isSelected = plotZoningTypes.includes(z.code);
+                                                    return (
+                                                        <button
+                                                            key={z.code}
+                                                            type="button"
+                                                            onClick={() => togglePlotZoning(z.code)}
+                                                            title={z.label}
+                                                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-full transition-all border ${isSelected
+                                                                ? ''
+                                                                : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:text-slate-700'
+                                                                }`}
+                                                            style={isSelected
+                                                                ? { background: `${z.color}14`, borderColor: `${z.color}59`, color: z.color }
+                                                                : undefined}
+                                                        >
+                                                            <span className="w-2 h-2 rounded-full flex-none" style={{ background: z.color, opacity: isSelected ? 1 : 0.4 }} />
+                                                            {z.code}
+                                                        </button>
+                                                    );
+                                                })}
                                             </div>
                                         </div>
 
                                         {/* Priority Filter */}
                                         <div>
-                                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Prioriteetti</label>
+                                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-[0.07em] mb-2">Prioriteetti</label>
                                             <div className="flex flex-wrap gap-1.5">
                                                 {[1, 2, 3, 0].map(p => (
                                                     <button
                                                         key={p}
                                                         type="button"
                                                         onClick={() => togglePlotPriority(p)}
-                                                        className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all border ${plotPriorities.includes(p)
-                                                            ? 'bg-slate-800 text-white border-slate-800 shadow-sm'
+                                                        className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all border ${plotPriorities.includes(p)
+                                                            ? 'bg-slate-900 text-white border-slate-900'
                                                             : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
                                                             }`}
                                                     >
@@ -595,17 +599,17 @@ export default function FilterPanel({
 
                                         {/* Material Filter (Puu/Betoni) */}
                                         <div>
-                                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Materiaali</label>
+                                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-[0.07em] mb-2">Materiaali</label>
                                             <div className="flex flex-wrap gap-1.5">
                                                 {[...MATERIAL_OPTIONS, { value: '', label: '-' }].map(m => (
                                                     <button
                                                         key={m.value || 'none'}
                                                         type="button"
                                                         onClick={() => togglePlotMaterial(m.value)}
-                                                        className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all border ${plotMaterials.includes(m.value)
+                                                        className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all border ${plotMaterials.includes(m.value)
                                                             ? (m.value === 'Puu'
                                                                 ? 'bg-amber-700 text-white border-amber-700 shadow-sm'
-                                                                : 'bg-slate-800 text-white border-slate-800 shadow-sm')
+                                                                : 'bg-slate-900 text-white border-slate-900')
                                                             : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
                                                             }`}
                                                     >
@@ -617,7 +621,7 @@ export default function FilterPanel({
 
                                         {/* Building Right Filter */}
                                         <div>
-                                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Rakennusoikeus (k-m²)</label>
+                                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-[0.07em] mb-2">Rakennusoikeus (k-m²)</label>
                                             <div className="flex gap-3">
                                                 <div className="relative flex-1">
                                                     <input
@@ -649,52 +653,55 @@ export default function FilterPanel({
                                         </div>
 
                                         {/* Add Mode Toggle */}
-                                        <label className="flex items-center p-3 bg-white border border-slate-200 rounded-xl cursor-pointer hover:border-green-300 hover:bg-green-50/50 transition-all group">
-                                            <div className={`w-5 h-5 rounded border flex items-center justify-center mr-3 transition-colors ${layerStates.add_plot_mode ? 'bg-green-500 border-green-500' : 'border-slate-300 bg-white'}`}>
-                                                {layerStates.add_plot_mode && <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
-                                            </div>
-                                            <input
-                                                type="checkbox"
-                                                checked={layerStates.add_plot_mode}
-                                                onChange={(e) => toggleLayer('add_plot_mode', e)}
-                                                className="hidden"
-                                            />
-                                            <span className={`text-sm font-medium transition-colors ${layerStates.add_plot_mode ? 'text-green-700' : 'text-slate-600 group-hover:text-slate-800'}`}>Lisäystila (Klikkaa karttaa)</span>
-                                        </label>
-
-                                        {/* Add Past Plot Mode Sub-Toggle */}
-                                        {layerStates.add_plot_mode && (
-                                            <label className="flex items-center p-2 mx-2 bg-gray-50 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-100 transition-all group">
-                                                <div className={`w-4 h-4 rounded border flex items-center justify-center mr-3 transition-colors ${layerStates.add_past_plot_mode ? 'bg-blue-500 border-blue-500' : 'border-slate-300 bg-white'}`}>
-                                                    {layerStates.add_past_plot_mode && <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                                        <div className="border-t border-slate-100 pt-3.5 space-y-2.5">
+                                            <label className="flex items-center gap-2.5 cursor-pointer group">
+                                                <div className={`w-[18px] h-[18px] rounded border flex items-center justify-center transition-colors ${layerStates.add_plot_mode ? 'bg-green-600 border-green-600' : 'border-slate-300 bg-white group-hover:border-slate-400'}`}>
+                                                    {layerStates.add_plot_mode && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
                                                 </div>
                                                 <input
                                                     type="checkbox"
-                                                    checked={!!layerStates.add_past_plot_mode}
-                                                    onChange={(e) => toggleLayer('add_past_plot_mode', e)}
+                                                    checked={layerStates.add_plot_mode}
+                                                    onChange={(e) => toggleLayer('add_plot_mode', e)}
                                                     className="hidden"
                                                 />
-                                                <span className={`text-xs font-medium transition-colors ${layerStates.add_past_plot_mode ? 'text-blue-700' : 'text-slate-600'}`}>Menneen tontin lisäys</span>
+                                                <span className={`text-[13px] font-medium transition-colors ${layerStates.add_plot_mode ? 'text-green-700' : 'text-slate-600 group-hover:text-slate-800'}`}>Lisäystila — klikkaa karttaa</span>
                                             </label>
-                                        )}
 
-                                        {/* Export Button */}
-                                        <button
-                                            onClick={handleExportVisiblePlots}
-                                            className="w-full py-2.5 px-4 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 hover:border-slate-300 hover:text-slate-900 transition-all flex items-center justify-center gap-2 shadow-sm"
-                                        >
-                                            <span>📥</span>
-                                            <span>Lataa Excel (.xlsx)</span>
-                                        </button>
+                                            {/* Add Past Plot Mode Sub-Toggle */}
+                                            {layerStates.add_plot_mode && (
+                                                <label className="flex items-center gap-2.5 pl-7 cursor-pointer group">
+                                                    <div className={`w-[16px] h-[16px] rounded border flex items-center justify-center transition-colors ${layerStates.add_past_plot_mode ? 'bg-blue-600 border-blue-600' : 'border-slate-300 bg-white group-hover:border-slate-400'}`}>
+                                                        {layerStates.add_past_plot_mode && <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                                                    </div>
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={!!layerStates.add_past_plot_mode}
+                                                        onChange={(e) => toggleLayer('add_past_plot_mode', e)}
+                                                        className="hidden"
+                                                    />
+                                                    <span className={`text-xs font-medium transition-colors ${layerStates.add_past_plot_mode ? 'text-blue-700' : 'text-slate-500'}`}>Menneen tontin lisäys</span>
+                                                </label>
+                                            )}
+
+                                            {/* Export Button */}
+                                            <button
+                                                onClick={handleExportVisiblePlots}
+                                                className="w-full py-2 px-4 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 hover:border-slate-300 hover:text-slate-900 transition-all flex items-center justify-center gap-2"
+                                            >
+                                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12m0 0l-4-4m4 4l4-4" />
+                                                </svg>
+                                                <span>Lataa Excel (.xlsx)</span>
+                                            </button>
+                                        </div>
                                     </div>
                                 )}
                             </div>
 
                             {/* WMS HAKU */}
-                            <div className="pt-2">
-                                <h3 className="text-sm font-bold text-slate-900 mb-4 flex items-center gap-2">
-                                    <span>🔍</span> Etsi rakennusoikeuksia (WMS)
-                                </h3>
+                            <div className="border-t border-slate-100 pt-5">
+                                <h3 className="text-sm font-semibold text-slate-900 mb-1">Etsi rakennusoikeuksia</h3>
+                                <p className="text-xs text-slate-500 mb-4">Korttelitason varantohaku (WMS)</p>
 
                                 <div className="space-y-4">
                                     {[
@@ -716,7 +723,7 @@ export default function FilterPanel({
                                     ))}
 
                                     <button onClick={handleSearch}
-                                        className="w-full mt-4 flex justify-center py-3 px-4 rounded-xl shadow-lg shadow-blue-900/10 text-sm font-bold text-white bg-slate-900 hover:bg-black focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-900 transition-all transform active:scale-[0.98]">
+                                        className="w-full mt-4 flex justify-center py-2.5 px-4 rounded-lg text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all active:scale-[0.99]">
                                         Hae kohteet
                                     </button>
 
@@ -726,7 +733,7 @@ export default function FilterPanel({
                                             <span className="text-slate-900 bg-slate-100 px-2 py-0.5 rounded text-[10px]">{opacity}%</span>
                                         </label>
                                         <input type="range" min="0" max="100" value={opacity} onChange={handleOpacityChange}
-                                            className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-slate-900" />
+                                            className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
                                     </div>
                                 </div>
                             </div>
@@ -734,12 +741,13 @@ export default function FilterPanel({
                     )}
 
                     {activeTab === 'analysis' && (
-                        <div className="space-y-4">
-                            <p className="text-sm text-slate-500 mb-6 bg-blue-50/50 p-3 rounded-lg border border-blue-100/50">
+                        <div>
+                            <p className="text-xs text-slate-500 mb-3">
                                 Tutki tonttien ominaisuuksia lisäämällä analyysitasoja kartalle.
                             </p>
 
                             {/* Layer Toggle Component */}
+                            <div className="divide-y divide-slate-100">
                             {[
                                 { id: 'sales_analysis', label: 'Uudiskohteiden myyntidata (STH)', desc: 'Analysoi myyntidataa Excelistä' },
                                 { id: 'business_plots', label: 'Vapaat yritystontit', desc: 'Helsingin ja Espoon vapaat tontit' },
@@ -751,43 +759,30 @@ export default function FilterPanel({
                                 { id: 'maapera', label: 'Maaperäkartta (GTK)', desc: 'Maaperän laatu (20k)' },
                                 { id: 'melu', label: 'Melualueet (HSY)', desc: 'Tieliikenteen melu (>55 dB)' },
                             ].map((layer) => (
-                                <div key={layer.id} className={`bg-white p-4 rounded-2xl border transition-all relative ${
-                                    // @ts-ignore
-                                    layerStates[layer.id] ? 'border-blue-200 shadow-sm ring-1 ring-blue-50' : 'border-slate-200 hover:border-slate-300 shadow-sm'
-                                    }`}>
-                                    <div className="flex items-center justify-between mb-1 relative z-20">
-                                        <h3 className={`text-sm font-bold ${
+                                <div key={layer.id} className="relative py-3 transition-colors">
+                                    <div className="flex items-center justify-between relative z-20 pointer-events-none">
+                                        <h3 className={`text-[13px] font-semibold ${
                                             // @ts-ignore
-                                            layerStates[layer.id] ? 'text-blue-700' : 'text-slate-900'
+                                            layerStates[layer.id] ? 'text-blue-700' : 'text-slate-800'
                                             }`}>{layer.label}</h3>
 
-                                        <div className="relative inline-block w-9 h-5 align-middle select-none group-hover:scale-105 transition-transform pointer-events-none">
-                                            <input
-                                                type="checkbox"
-                                                // @ts-ignore
-                                                checked={layerStates[layer.id]}
-                                                readOnly
-                                                className="toggle-checkbox absolute block w-3.5 h-3.5 rounded-full bg-white border-2 appearance-none translate-x-0.5 top-0.5 transition-transform checked:translate-x-4 checked:border-blue-600 z-10"
-                                            />
-                                            <div className={`toggle-label block overflow-hidden h-5 rounded-full transition-colors ${
-                                                // @ts-ignore
-                                                layerStates[layer.id] ? 'bg-blue-600' : 'bg-slate-300'
-                                                }`}
-                                            ></div>
-                                        </div>
-                                        {/* Overlay for hit area - constrained to this layer's container */}
-                                        <label className="absolute inset-0 cursor-pointer z-0">
-                                            <input
-                                                type="checkbox"
-                                                // @ts-ignore
-                                                checked={layerStates[layer.id]}
-                                                // @ts-ignore
-                                                onChange={(e) => toggleLayer(layer.id, e)}
-                                                className="hidden"
-                                            />
-                                        </label>
+                                        <Switch on={
+                                            // @ts-ignore
+                                            !!layerStates[layer.id]
+                                        } />
                                     </div>
-                                    <p className="text-xs text-slate-500 relative z-10 pointer-events-none">{layer.desc}</p>
+                                    {/* Overlay for hit area - constrained to this layer's container */}
+                                    <label className="absolute inset-0 cursor-pointer z-0">
+                                        <input
+                                            type="checkbox"
+                                            // @ts-ignore
+                                            checked={layerStates[layer.id]}
+                                            // @ts-ignore
+                                            onChange={(e) => toggleLayer(layer.id, e)}
+                                            className="hidden"
+                                        />
+                                    </label>
+                                    <p className="text-xs text-slate-500 mt-0.5 relative z-10 pointer-events-none">{layer.desc}</p>
 
                                     {/* Sales Analysis Portal Container */}
                                     {layer.id === 'sales_analysis' && layerStates.sales_analysis && (
@@ -800,7 +795,7 @@ export default function FilterPanel({
                                         <div className="mt-3 pt-3 border-t border-slate-100 space-y-3 animate-in fade-in duration-300 relative z-30">
                                             {/* Usage Filter (Multi-select) */}
                                             <div>
-                                                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Käyttötarkoitus</label>
+                                                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-[0.07em] mb-2">Käyttötarkoitus</label>
                                                 <div className="flex flex-wrap gap-1.5 pr-1 max-h-32 overflow-y-auto custom-scrollbar">
                                                     {businessUsageOptions.map(opt => (
                                                         <button
@@ -814,7 +809,7 @@ export default function FilterPanel({
                                                                 onBusinessPlotFiltersChange?.({ ...businessPlotFilters, usage: newUsage });
                                                             }}
                                                             className={`px-2.5 py-1 text-xs font-medium rounded-md border transition-all ${businessPlotFilters.usage?.includes(opt)
-                                                                ? 'bg-slate-800 text-white border-slate-800 shadow-sm'
+                                                                ? 'bg-slate-900 text-white border-slate-900'
                                                                 : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
                                                                 }`}
                                                         >
@@ -835,7 +830,7 @@ export default function FilterPanel({
 
                                             {/* Build Right Filter */}
                                             <div>
-                                                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Rakennusoikeus (k-m²)</label>
+                                                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-[0.07em] mb-1">Rakennusoikeus (k-m²)</label>
                                                 <div className="flex gap-2">
                                                     <input
                                                         type="number" placeholder="Min"
@@ -853,7 +848,7 @@ export default function FilterPanel({
                                             </div>
                                             {/* Area Filter */}
                                             <div>
-                                                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">Pinta-ala (m²)</label>
+                                                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-[0.07em] mb-1">Pinta-ala (m²)</label>
                                                 <div className="flex gap-2">
                                                     <input
                                                         type="number" placeholder="Min"
@@ -923,6 +918,7 @@ export default function FilterPanel({
                                     )}
                                 </div>
                             ))}
+                            </div>
                         </div>
                     )}
                 </div>

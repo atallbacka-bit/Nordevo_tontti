@@ -17,16 +17,18 @@ function sanitizeHtml(html: string): string {
 }
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { MapContainer, TileLayer, WMSTileLayer, LayersControl, useMap, Marker, Popup, Pane, GeoJSON } from 'react-leaflet';
+import { MapContainer, TileLayer, WMSTileLayer, useMap, Marker, Popup, Pane, GeoJSON } from 'react-leaflet';
+import MarkerClusterGroup from 'react-leaflet-cluster';
 import 'leaflet/dist/leaflet.css';
+import 'react-leaflet-cluster/lib/assets/MarkerCluster.css';
 import L from 'leaflet';
 import FilterPanel from './FilterPanel';
 import AddPlotModal from './AddPlotModal';
 import AddPastPlotModal from './AddPastPlotModal';
 import SalesAnalysisLayer from './SalesAnalysisLayer';
 import BusinessPlotsLayer from './BusinessPlotsLayer';
-import { ZONING_TYPES, getZoningColor, getPlotColor, STATUS_OPTIONS } from '@/lib/constants';
-import { PlotData, PlotFilters, SalesFilters, BusinessPlotFilters, MarkSoldData, MarkOfferedData, ContactLog } from '@/types';
+import { ZONING_TYPES, getZoningColor, getStatusAccent } from '@/lib/constants';
+import { PlotData, PlotFilters, SalesFilters, BusinessPlotFilters, MarkSoldData, MarkOfferedData } from '@/types';
 import * as api from '@/lib/api';
 import MarkSoldModal from './MarkSoldModal';
 import NoteModal from './NoteModal';
@@ -35,48 +37,29 @@ import EditContactInfoModal from './EditContactInfoModal';
 import LogContactModal from './LogContactModal';
 import HistoryModal from './HistoryModal';
 import AddressSearch, { AddressSearchResult } from './AddressSearch';
+import PlotPopupCard from './PlotPopupCard';
+import { parseZonings, getContactPersons, formatDate, formatShortDate } from '@/lib/plotUtils';
 
-// Parse zonings from JSON string or legacy format
-function parseZonings(plot: PlotData): { type: string, buildingRight: number }[] {
-    if (plot.zonings) {
-        try {
-            const parsed = typeof plot.zonings === 'string' ? JSON.parse(plot.zonings) : plot.zonings;
-            if (Array.isArray(parsed)) return parsed;
-        } catch { }
-    }
-    return [{ type: 'AK', buildingRight: plot.buildingRight || 0 }];
-}
+// Selectable basemaps for the map-corner switcher
+const BASE_LAYERS: { id: string; label: string }[] = [
+    { id: 'light', label: 'Vaalea' },
+    { id: 'osm', label: 'Värillinen' },
+    { id: 'satellite', label: 'Satelliitti' },
+    { id: 'kaava-hki', label: 'Asemakaava · Helsinki' },
+    { id: 'kaava-espoo', label: 'Asemakaava · Espoo' },
+    { id: 'kaava-vantaa', label: 'Asemakaava · Vantaa' },
+];
 
-// Parse notes from JSON string
-function parseNotes(plot: PlotData): { id: string, text: string, author: string, timestamp: string }[] {
-    if (plot.notes) {
-        try {
-            const parsed = typeof plot.notes === 'string' ? JSON.parse(plot.notes) : plot.notes;
-            if (Array.isArray(parsed)) return parsed;
-        } catch { }
-    }
-    return [];
-}
-
-// Parse contacts from JSON string
-function parseContacts(plot: PlotData): ContactLog[] {
-    if (plot.contacts) {
-        try {
-            const parsed = typeof plot.contacts === 'string' ? JSON.parse(plot.contacts) : plot.contacts;
-            if (Array.isArray(parsed)) return parsed;
-        } catch { }
-    }
-    return [];
-}
-
-// Get marker size based on building rights (30-50px range - smaller variance)
-function getMarkerSize(buildingRight: number): number {
-    const minSize = 30;
-    const maxSize = 50;
-    const minBR = 0;
-    const maxBR = 10000;
-    const clamped = Math.min(Math.max(buildingRight, minBR), maxBR);
-    return minSize + ((clamped - minBR) / (maxBR - minBR)) * (maxSize - minSize);
+// Cluster badge: white circle sized by member count
+function createClusterIcon(cluster: any) {
+    const count = cluster.getChildCount();
+    const size = count < 10 ? 34 : count < 50 ? 40 : 46;
+    return L.divIcon({
+        html: `<div class="plot-cluster" style="width:${size}px;height:${size}px;">${count}</div>`,
+        className: 'custom-plot-icon',
+        iconSize: [size, size],
+        iconAnchor: [size / 2, size / 2]
+    });
 }
 
 
@@ -84,16 +67,6 @@ function getMarkerSize(buildingRight: number): number {
 function getZoningLabel(zonings: { type: string, buildingRight: number }[]): string {
     if (zonings.length === 1) return zonings[0].type;
     return zonings.map(z => z.type).join('/');
-}
-
-// Format date for display
-function formatDate(dateStr: string): string {
-    if (!dateStr) return '';
-    try {
-        return new Date(dateStr).toLocaleDateString('fi-FI');
-    } catch {
-        return dateStr;
-    }
 }
 
 // Sales popup content with expandable details
@@ -181,16 +154,6 @@ if (typeof window !== 'undefined') {
     delete (L.Icon.Default.prototype as any)._getIconUrl;
     L.Icon.Default.mergeOptions({ iconRetinaUrl, iconUrl, shadowUrl });
 }
-
-const ShareIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-1">
-        <circle cx="18" cy="5" r="3"></circle>
-        <circle cx="6" cy="12" r="3"></circle>
-        <circle cx="18" cy="19" r="3"></circle>
-        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
-        <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
-    </svg>
-);
 
 // Helper to update WMS params
 function WMSUpdater({ cqlFilter, opacity, layerRef }: { cqlFilter: string, opacity: number, layerRef: React.RefObject<L.TileLayer.WMS> }) {
@@ -364,6 +327,8 @@ export default function MapComponent() {
 
     const [showKiinteistot, setShowKiinteistot] = useState(false);
     const [showAsemakaavaInfo, setShowAsemakaavaInfo] = useState(false);
+    const [baseLayer, setBaseLayer] = useState('light');
+    const [baseMenuOpen, setBaseMenuOpen] = useState(false);
     const [popupInfo, setPopupInfo] = useState<{ lat: number, lng: number, content: string } | null>(null);
     const [isPanelOpen, setIsPanelOpen] = useState(true);
 
@@ -377,7 +342,6 @@ export default function MapComponent() {
     // Plot search: marker refs for programmatic popup opening
     const markerRefs = useRef<Map<string, L.Marker>>(new Map());
     const [selectedPlotId, setSelectedPlotId] = useState<string | null>(null);
-    const [copiedId, setCopiedId] = useState<string | null>(null);
 
     // Sales State
     const [showSales, setShowSales] = useState(false);
@@ -659,28 +623,6 @@ export default function MapComponent() {
         setPlotToMarkOffered(null);
     };
 
-    // Helper to get contact persons
-    const getContactPersons = (plot: PlotData) => {
-        try {
-            if (plot.contactPersons) {
-                const parsed = typeof plot.contactPersons === 'string' ? JSON.parse(plot.contactPersons) : plot.contactPersons;
-                if (Array.isArray(parsed)) return parsed;
-            }
-            // Fallback to legacy fields if no contactPersons array
-            if (plot.contactPerson) {
-                return [{
-                    id: 'legacy',
-                    name: plot.contactPerson,
-                    phone: plot.contactPhone,
-                    email: plot.contactEmail
-                }];
-            }
-        } catch (e) {
-            console.error('Error parsing contact persons:', e);
-        }
-        return [];
-    };
-
     // Contact Handlers
     const openEditContactModal = (plot: PlotData) => {
         setContactPlot(plot);
@@ -920,16 +862,6 @@ export default function MapComponent() {
         setIsNoteModalOpen(true);
     };
 
-    // Get status color
-    const getStatusColor = (status: string) => {
-        switch (status) {
-            case 'Vapaa': return 'text-green-600';
-            case 'Kilpailussa': return 'text-orange-600';
-            case 'Mennyt': return 'text-gray-500';
-            default: return 'text-gray-700';
-        }
-    };
-
     return (
         <div className="flex w-full h-full overflow-hidden">
             <FilterPanel
@@ -979,6 +911,40 @@ export default function MapComponent() {
                 )}
 
                 <AddressSearch onSelect={setSearchMarker} />
+
+                {/* Basemap switcher */}
+                <div className="absolute top-[12px] right-[12px] z-[1000]">
+                    <button
+                        onClick={() => setBaseMenuOpen(!baseMenuOpen)}
+                        className={`flex items-center justify-center w-[38px] h-[38px] bg-white rounded-md shadow-md border transition-colors ${baseMenuOpen ? 'border-blue-400 text-blue-600' : 'border-slate-200 text-slate-600 hover:text-slate-900'}`}
+                        title="Karttapohja"
+                        aria-label="Vaihda karttapohja"
+                    >
+                        <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 3l9 5-9 5-9-5 9-5z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 12.5l9 5 9-5M3 16.5l9 5 9-5" opacity="0.55" />
+                        </svg>
+                    </button>
+                    {baseMenuOpen && (
+                        <div className="absolute right-0 mt-1.5 w-52 bg-white border border-slate-200 rounded-lg shadow-lg py-1.5">
+                            <div className="px-3 pb-1 pt-0.5 text-[10px] font-bold text-slate-400 uppercase tracking-[0.07em]">Karttapohja</div>
+                            {BASE_LAYERS.map(bl => (
+                                <button
+                                    key={bl.id}
+                                    onClick={() => { setBaseLayer(bl.id); setBaseMenuOpen(false); }}
+                                    className={`w-full flex items-center justify-between text-left px-3 py-1.5 text-[12.5px] transition-colors ${baseLayer === bl.id ? 'text-blue-700 font-semibold bg-blue-50/60' : 'text-slate-700 hover:bg-slate-50'}`}
+                                >
+                                    {bl.label}
+                                    {baseLayer === bl.id && (
+                                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                        </svg>
+                                    )}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </div>
 
                 <MapContainer center={[60.25, 24.8]} zoom={10} style={{ height: '100%', width: '100%' }}>
                     <MapEvents />
@@ -1033,6 +999,16 @@ export default function MapComponent() {
                                 <Marker
                                     key={sale.id || i}
                                     position={[sale.lat, sale.lng]}
+                                    icon={L.divIcon({
+                                        className: 'custom-plot-icon',
+                                        html: `<div class="plot-pin-center"><div class="plot-pill plot-sold">
+                                            <span class="plot-pill-dot" style="background:${getStatusAccent('Mennyt')};"></span>
+                                            <span>${sale.pricePerRight && sale.pricePerRight > 0 ? `${sale.pricePerRight.toLocaleString('fi-FI')} €/kem` : (sale.finalPrice ? `${sale.finalPrice.toLocaleString('fi-FI')} €` : 'Myyty')}</span>
+                                        </div></div>`,
+                                        iconSize: [0, 0],
+                                        iconAnchor: [0, 0],
+                                        popupAnchor: [0, -16]
+                                    })}
                                     eventHandlers={{
                                         click: () => {
                                             if (editMode) {
@@ -1056,10 +1032,14 @@ export default function MapComponent() {
                                 key={apt.id || i}
                                 position={[apt.lat, apt.lng]}
                                 icon={L.divIcon({
-                                    className: 'custom-div-icon',
-                                    html: `<div style="background-color: #10b981; color: white; padding: 4px; border-radius: 4px; font-weight: bold; font-size: 12px;">${apt.pricePerSqm} €</div>`,
-                                    iconSize: [60, 24],
-                                    iconAnchor: [30, 12]
+                                    className: 'custom-plot-icon',
+                                    html: `<div class="plot-pin-center"><div class="plot-pill">
+                                        <span class="plot-pill-dot" style="background:#10b981;"></span>
+                                        <span>${apt.pricePerSqm?.toLocaleString('fi-FI')} €/m²</span>
+                                    </div></div>`,
+                                    iconSize: [0, 0],
+                                    iconAnchor: [0, 0],
+                                    popupAnchor: [0, -16]
                                 })}
                             >
                                 <Popup>
@@ -1075,63 +1055,46 @@ export default function MapComponent() {
                         ) : null
                     ))}
 
-                    {/* Plots Markers */}
-                    {showPlots && visiblePlots.map((plot, i) => {
+                    {/* Plots Markers — clustered when overlapping */}
+                    {showPlots && (
+                    <MarkerClusterGroup
+                        chunkedLoading
+                        maxClusterRadius={50}
+                        showCoverageOnHover={false}
+                        spiderfyOnMaxZoom={true}
+                        disableClusteringAtZoom={15}
+                        iconCreateFunction={createClusterIcon}
+                    >
+                    {visiblePlots.map((plot, i) => {
                         if (!plot.lat || !plot.lng) return null;
                         const zonings = parseZonings(plot);
-                        const notes = parseNotes(plot);
-                        const contacts = parseContacts(plot);
-                        const latestContact = contacts.length > 0 ? contacts[contacts.length - 1] : null;
 
-                        const primaryColor = getZoningColor(zonings[0]?.type || 'AK');
                         const totalBR = zonings.reduce((sum, z) => sum + (z.buildingRight || 0), 0) || plot.buildingRight || 0;
-                        const markerSize = getMarkerSize(totalBR);
                         const label = getZoningLabel(zonings);
 
                         const priceToUse = (plot.status === 'Tarjottu' && plot.offerPrice) ? plot.offerPrice : plot.priceEst;
                         const unitPrice = (priceToUse && totalBR) ? Math.round(priceToUse / totalBR) : null;
 
-                        // Style configuration — all markers use unified pill shape, only color varies
-                        const plotColor = getPlotColor(plot.status, zonings[0]?.type || 'AK');
+                        const accent = getStatusAccent(plot.status);
                         const isSold = plot.status === 'Mennyt';
+                        const isCompetition = plot.status === 'Kilpailussa' && plot.deadline;
 
-                        // Base styles — unified pill for all statuses
-                        const pillPadding = '5px 9px';
-                        const pillFontSize = Math.max(10, markerSize / 4);
-                        const pillOpacity = isSold ? '0.65' : '1';
-                        const pillShadowColor = isSold ? 'rgba(0,0,0,0.15)' : 'rgba(0,0,0,0.25)';
-                        const pillFontWeight = isSold ? 'normal' : 'bold';
+                        // Secondary segment: deadline for competitions, otherwise unit price
+                        const info = isSold
+                            ? (plot.pricePerRight && plot.pricePerRight > 0 ? `${plot.pricePerRight.toLocaleString('fi-FI')} €` : '')
+                            : isCompetition
+                                ? `DL ${formatShortDate(plot.deadline!)}`
+                                : (unitPrice ? `${unitPrice.toLocaleString('fi-FI')} €` : '');
+                        const infoColor = isCompetition ? '#dc2626' : '#64748b';
 
-                        let markerHtml = `<div style="
-                            background-color: ${plotColor};
-                            color: white;
-                            padding: ${pillPadding};
-                            border-radius: 9999px;
-                            border: 2px solid white;
-                            box-shadow: 0 2px 6px ${pillShadowColor};
-                            display: flex;
-                            flex-direction: column;
-                            justify-content: center;
-                            align-items: center;
-                            font-weight: ${pillFontWeight};
-                            font-size: ${pillFontSize}px;
-                            min-width: ${markerSize}px;
-                            text-align: center;
-                            opacity: ${pillOpacity};
-                            white-space: nowrap;
-                        ">
-                            <div style="line-height:1.1;">${label}</div>
-                            <div style="font-size:0.78em; opacity:0.9; margin-top:1px;">${totalBR.toLocaleString()}</div>
-                            ${isSold && plot.pricePerRight && plot.pricePerRight > 0
-                                ? `<div style='font-size:0.72em; opacity:0.8; margin-top:1px;'>${plot.pricePerRight.toLocaleString()} €</div>`
-                                : !isSold && unitPrice
-                                    ? `<div style='font-size:0.72em; background:rgba(0,0,0,0.15); padding:0 4px; border-radius:20px; margin-top:2px;'>${unitPrice.toLocaleString()} €</div>`
-                                    : ''
-                            }
-                        </div>`;
-
-                        let anchor: [number, number] = [(markerSize + 10) / 2, (markerSize + 10) / 2];
-                        let size: [number, number] = [markerSize + 10, markerSize + 10];
+                        // Quiet white pill: status dot + zoning-colored type badge + k-m² + price/DL
+                        const zoneColor = getZoningColor(zonings[0]?.type || 'AK');
+                        const markerHtml = `<div class="plot-pin-center"><div class="plot-pill${isSold ? ' plot-sold' : ''}">
+                            <span class="plot-pill-dot" style="background:${accent};"></span>
+                            <span class="plot-pill-zone" style="background:${zoneColor};">${label}</span>
+                            ${totalBR ? `<span>${totalBR.toLocaleString('fi-FI')}</span>` : ''}
+                            ${info ? `<span class="plot-pill-info" style="color:${infoColor};">${info}</span>` : ''}
+                        </div></div>`;
 
                         return (
                             <Marker
@@ -1143,336 +1106,79 @@ export default function MapComponent() {
                                 icon={L.divIcon({
                                     className: 'custom-plot-icon',
                                     html: markerHtml,
-                                    iconSize: size,
-                                    iconAnchor: anchor
+                                    iconSize: [0, 0],
+                                    iconAnchor: [0, 0],
+                                    popupAnchor: [0, -16]
                                 })}
                             >
-                                <Popup>
-
-
-                                    <div
-                                        className="text-sm min-w-[260px] max-w-[320px] relative pt-2"
-                                        onWheel={(e) => e.stopPropagation()}
-                                        onTouchMove={(e) => e.stopPropagation()}
-                                    >
-                                        {/* Created/Updated info - Moved to top right */}
-                                        <div className="absolute top-0 right-0 text-[10px] text-gray-400 text-right leading-tight max-w-[120px]">
-                                            {plot.createdAt && (
-                                                <div className="truncate">Lisätty: {formatDate(plot.createdAt)} ({plot.createdBy || '-'})</div>
-                                            )}
-                                            {plot.updatedAt && (
-                                                <div className="truncate">Päivitetty: {formatDate(plot.updatedAt)} ({plot.updatedBy || '-'})</div>
-                                            )}
-                                        </div>
-
-                                        <h3 className="font-bold text-lg mb-1 pr-36 leading-tight">{plot.name}</h3>
-
-                                        {/* SOLD PLOT SPECIFIC LAYOUT */}
-                                        {plot.status === 'Mennyt' ? (
-                                            <div className="space-y-2 mt-2">
-                                                <p className={`font-bold ${getStatusColor(plot.status)}`}>{plot.status}</p>
-
-                                                {/* Zoning breakdown (Same as original) */}
-                                                <div className="bg-gray-50 p-1.5 rounded my-1.5">
-                                                    <div className="text-[10px] font-semibold text-gray-500 uppercase mb-0.5">Kaavatyypit</div>
-                                                    {zonings.map((z, idx) => (
-                                                        <div key={idx} className="flex justify-between items-center text-sm">
-                                                            <span style={{ color: getZoningColor(z.type) }} className="font-medium">
-                                                                {z.type} - {ZONING_TYPES.find(zt => zt.code === z.type)?.label || z.type}
-                                                            </span>
-                                                            <span className="font-semibold">{z.buildingRight?.toLocaleString()} k-m²</span>
-                                                        </div>
-                                                    ))}
-                                                    {zonings.length > 1 && (
-                                                        <div className="border-t mt-0.5 pt-0.5 flex justify-between font-bold text-sm">
-                                                            <span>Yhteensä</span>
-                                                            <span>{totalBR.toLocaleString()} k-m²</span>
-                                                        </div>
-                                                    )}
-                                                </div>
-
-                                                <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-gray-700 mt-2">
-                                                    <span>Kauppapäivä:</span>
-                                                    <span className="font-medium">{plot.soldDate ? formatDate(plot.soldDate) : '-'}</span>
-
-                                                    <span>Kem kauppahinta:</span>
-                                                    <span className="font-medium">{plot.pricePerRight ? `${plot.pricePerRight.toLocaleString()} €/k-m²` : '-'}</span>
-
-                                                    <span>Kokonaishinta:</span>
-                                                    <span className="font-bold text-gray-900">{plot.finalPrice ? `${plot.finalPrice.toLocaleString()} €` : '-'}</span>
-                                                </div>
-
-                                                {plot.desc && (
-                                                    <div className="mt-2 text-sm text-gray-700 bg-blue-50/50 p-2 rounded border border-blue-100/50 italic">
-                                                        "{plot.desc}"
-                                                    </div>
-                                                )}
-                                            </div>
-                                        ) : (
-                                            /* STANDARD PLOT LAYOUT */
-                                            <div className="space-y-1">
-                                                <p className="text-gray-600">{plot.address}</p>
-
-                                                {/* Status with deadline */}
-                                                <p className={`font-bold ${getStatusColor(plot.status)}`}>
-                                                    {plot.status}
-                                                    {plot.status === 'Kilpailussa' && plot.deadline && (
-                                                        <span className="font-normal ml-2">
-                                                            (DL: {formatDate(plot.deadline)})
-                                                        </span>
-                                                    )}
-                                                </p>
-
-                                                {/* Zoning breakdown */}
-                                                <div className="bg-gray-50 p-1.5 rounded my-1.5">
-                                                    <div className="text-[10px] font-semibold text-gray-500 uppercase mb-0.5">Kaavatyypit</div>
-                                                    {zonings.map((z, idx) => (
-                                                        <div key={idx} className="flex justify-between items-center text-sm">
-                                                            <span style={{ color: getZoningColor(z.type) }} className="font-medium">
-                                                                {z.type} - {ZONING_TYPES.find(zt => zt.code === z.type)?.label || z.type}
-                                                            </span>
-                                                            <span className="font-semibold">{z.buildingRight?.toLocaleString()} k-m²</span>
-                                                        </div>
-                                                    ))}
-                                                    {zonings.length > 1 && (
-                                                        <div className="border-t mt-0.5 pt-0.5 flex justify-between font-bold text-sm">
-                                                            <span>Yhteensä</span>
-                                                            <span>{totalBR.toLocaleString()} k-m²</span>
-                                                        </div>
-                                                    )}
-                                                </div>
-
-                                                <div className="grid grid-cols-2 gap-x-2 text-gray-700">
-                                                    {plot.material && (
-                                                        <>
-                                                            <span>Materiaali:</span>
-                                                            <span className={`font-medium ${plot.material === 'Puu' ? 'text-amber-700' : ''}`}>
-                                                                {plot.material}
-                                                            </span>
-                                                        </>
-                                                    )}
-                                                    <span>Pinta-ala:</span> <span className="font-medium">{plot.area} m²</span>
-                                                    <span>{plot.status === 'Tarjottu' ? 'Tarjous:' : 'Hinta-arvio:'}</span>
-                                                    <span className="font-medium">
-                                                        {(plot.status === 'Tarjottu' && plot.offerPrice ? plot.offerPrice : plot.priceEst)?.toLocaleString()} €
-                                                    </span>
-                                                    {unitPrice && (
-                                                        <>
-                                                            <span>Yksikköhinta:</span>
-                                                            <span className="font-medium">{unitPrice.toLocaleString()} €/k-m²</span>
-                                                        </>
-                                                    )}
-                                                </div>
-                                                <p className="text-gray-800">Myyjä: <span className="font-semibold">{plot.seller || '-'}</span></p>
-                                                {plot.kiinteistotunnus && <p className="text-gray-800">Kiinteistötunnus: <span className="font-semibold">{plot.kiinteistotunnus}</span></p>}
-
-                                                {plot.desc && <p className="text-gray-600 italic border-t pt-1 mt-1 text-[10px]">{plot.desc}</p>}
-
-                                                {/* Contact Info - Compact Version (Moved Up) */}
-                                                <div className="border-t pt-1 mt-1">
-                                                    <div className="flex justify-between items-center mb-0.5">
-                                                        <div className="text-[10px] font-semibold text-gray-500 uppercase">Yhteystiedot</div>
-                                                        <button
-                                                            onClick={() => openEditContactModal(plot)}
-                                                            className="text-[10px] text-blue-600 hover:underline"
-                                                        >
-                                                            Muokkaa/lisää
-                                                        </button>
-                                                    </div>
-
-                                                    {getContactPersons(plot).length > 0 ? (
-                                                        <div className="grid grid-cols-1 gap-0.5 mb-1">
-                                                            {getContactPersons(plot).map((person: any, idx: number) => (
-                                                                <div key={idx} className="text-[10px] text-gray-800 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200 flex flex-wrap gap-x-2 items-center">
-                                                                    <span className="font-semibold">{person.name}</span>
-                                                                    {person.role && <span className="text-gray-500 italic text-[10px]">({person.role})</span>}
-                                                                    {person.phone && <span className="text-gray-600 text-[10px]">{person.phone}</span>}
-                                                                    {person.email && <span className="text-gray-600 text-[10px]">{person.email}</span>}
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    ) : (
-                                                        <div className="mb-1 text-[10px] text-gray-400 italic">Ei yhteystietoja.</div>
-                                                    )}
-                                                </div>
-
-                                                {/* Unified History Container - Compact Version (Moved Down) */}
-                                                {(notes.length > 0 || contacts.length > 0) && (
-                                                    <div className="border-t pt-1 mt-1">
-                                                        <div className="flex justify-between items-center mb-0.5">
-                                                            <div className="text-[10px] font-semibold text-gray-500 uppercase">
-                                                                Tapahtumat ({notes.length + contacts.length})
-                                                            </div>
-                                                            <button
-                                                                onClick={() => openHistoryModal(plot)}
-                                                                className="text-[10px] text-blue-600 hover:underline"
-                                                            >
-                                                                Näytä kaikki
-                                                            </button>
-                                                        </div>
-                                                        {/* Increased max-height slightly to ensure 1.5 items visible (approx 100px for detailed items) */}
-                                                        <div className="max-h-[110px] overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
-                                                            {[
-                                                                ...notes.map(n => ({ ...n, type: 'note', date: n.timestamp })),
-                                                                ...contacts.map(c => ({ ...c, type: 'contact', date: c.timestamp || c.date }))
-                                                            ]
-                                                                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                                                                .map((item, idx) => (
-                                                                    <div
-                                                                        key={`${item.type}-${item.id || idx}`}
-                                                                        className={`text-[10px] p-1.5 rounded border leading-tight ${item.type === 'contact'
-                                                                            ? 'bg-green-50/50 border-green-100'
-                                                                            : 'bg-yellow-50/50 border-yellow-100'
-                                                                            }`}
-                                                                    >
-                                                                        {item.type === 'contact' ? (
-                                                                            <>
-                                                                                {/* Header: Date | Agent (Right) */}
-                                                                                <div className="flex justify-between items-start mb-0.5">
-                                                                                    <span className="font-bold text-green-800">
-                                                                                        {formatDate(item.date)}
-                                                                                    </span>
-                                                                                    <span className="text-[10px] text-gray-400">
-                                                                                        {(item as any).agent}
-                                                                                    </span>
-                                                                                </div>
-                                                                                {/* Subheader: Contact Person */}
-                                                                                <div className="text-[10px] text-gray-600 mb-1 font-medium">
-                                                                                    {(item as any).person || 'Tuntematon'}
-                                                                                </div>
-                                                                                {/* Body: Comment */}
-                                                                                <p className="text-gray-800">
-                                                                                    {(item as any).desc}
-                                                                                </p>
-                                                                            </>
-                                                                        ) : (
-                                                                            <>
-                                                                                <div className="flex justify-between items-center mb-0.5">
-                                                                                    <span className="font-semibold text-yellow-700">
-                                                                                        {formatDate(item.date)}
-                                                                                    </span>
-                                                                                    <span className="text-[10px] text-gray-400">
-                                                                                        {(item as any).author}
-                                                                                    </span>
-                                                                                </div>
-                                                                                <p className="text-gray-700">
-                                                                                    {(item as any).text}
-                                                                                </p>
-                                                                            </>
-                                                                        )}
-                                                                    </div>
-                                                                ))}
-                                                        </div>
-                                                    </div>
-                                                )}
-
-                                                <div className="flex gap-2 mt-1">
-                                                    {getContactPersons(plot).length > 0 && (
-                                                        <button
-                                                            onClick={() => openLogContactModal(plot)}
-                                                            className="flex-1 px-2 py-1 text-[10px] font-medium text-white bg-green-600 rounded hover:bg-green-700 shadow-sm"
-                                                        >
-                                                            Uusi kontaktointi
-                                                        </button>
-                                                    )}
-                                                    <button
-                                                        onClick={() => openNoteModal(plot.id, plot.name)}
-                                                        className="flex-1 px-2 py-1 text-[10px] font-medium text-yellow-700 bg-yellow-50 border border-yellow-200 rounded hover:bg-yellow-100"
-                                                    >
-                                                        Lisää muistiinpano
-                                                    </button>
-                                                </div>
-
-                                                {/* Action buttons */}
-                                                <div className="border-t pt-1 mt-1 flex gap-2">
-                                                    {/* Common Action Buttons */}
-                                                    <div className="mt-4 pt-3 border-t flex flex-wrap gap-2">
-                                                        <button
-                                                            onClick={async () => {
-                                                                const url = `${window.location.origin}${window.location.pathname}?plot=${plot.id}`;
-                                                                try {
-                                                                    await navigator.clipboard.writeText(url);
-                                                                    setCopiedId(plot.id);
-                                                                    setTimeout(() => setCopiedId(null), 2000);
-                                                                } catch (err) {
-                                                                    console.error('Failed to copy link', err);
-                                                                }
-                                                            }}
-                                                            className="flex-1 flex items-center justify-center px-2 py-1 text-[10px] font-medium text-purple-700 bg-purple-50 border border-purple-200 rounded hover:bg-purple-100"
-                                                        >
-                                                            {copiedId === plot.id ? 'Kopioitu!' : <><ShareIcon /> Jaa</>}
-                                                        </button>
-                                                        <button
-                                                            onClick={() => openEditModal(plot)}
-                                                            className="flex-1 px-2 py-1 text-[10px] font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100"
-                                                        >
-                                                            Muokkaa
-                                                        </button>
-                                                        {plot.status !== 'Mennyt' && (
-                                                            <button
-                                                                onClick={() => openMarkAsSoldModal(plot)}
-                                                                className="flex-1 px-2 py-1 text-[10px] font-medium text-green-700 bg-green-50 border border-green-200 rounded hover:bg-green-100"
-                                                            >
-                                                                Merkitse myydyksi
-                                                            </button>
-                                                        )}
-                                                        {plot.status !== 'Mennyt' && (
-                                                            <button
-                                                                onClick={() => openMarkAsOfferedModal(plot)}
-                                                                className="flex-1 px-2 py-1 text-[10px] font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded hover:bg-blue-100"
-                                                            >
-                                                                Merkitse tarjotuksi
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
+                                <Popup className="plot-popup" minWidth={300} maxWidth={300}>
+                                    <PlotPopupCard
+                                        plot={plot}
+                                        onEdit={openEditModal}
+                                        onMarkSold={openMarkAsSoldModal}
+                                        onMarkOffered={openMarkAsOfferedModal}
+                                        onEditContacts={openEditContactModal}
+                                        onLogContact={openLogContactModal}
+                                        onAddNote={openNoteModal}
+                                        onShowHistory={openHistoryModal}
+                                    />
                                 </Popup>
                             </Marker>
                         );
                     })}
+                    </MarkerClusterGroup>
+                    )}
 
-                    <LayersControl position="topright">
-                        <LayersControl.BaseLayer checked name="OpenStreetMap">
-                            <TileLayer
-                                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                            />
-                        </LayersControl.BaseLayer>
-                        <LayersControl.BaseLayer name="Satelliitti">
-                            <TileLayer
-                                attribution='Tiles &copy; Esri'
-                                url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
-                            />
-                        </LayersControl.BaseLayer>
-                        <LayersControl.BaseLayer name="Asemakaava (Helsinki)">
-                            <WMSTileLayer
-                                url="https://kartta.hel.fi/ws/geoserver/avoindata/wms"
-                                layers="Ajantasa_asemakaava_maanpaallinen_varillinen"
-                                format="image/png"
-                                transparent={true}
-                            />
-                        </LayersControl.BaseLayer>
-                        <LayersControl.BaseLayer name="Asemakaava (Espoo)">
-                            <WMSTileLayer
-                                url="https://kartat.espoo.fi/teklaogcweb/wms.ashx"
-                                layers="Ajantasa_asemakaava_vektori"
-                                format="image/png"
-                                transparent={true}
-                                version="1.1.1"
-                            />
-                        </LayersControl.BaseLayer>
-                        <LayersControl.BaseLayer name="Asemakaava (Vantaa)">
-                            <WMSTileLayer
-                                url="https://gis.vantaa.fi/geoserver/wms"
-                                layers="kaava:asemakaavahakemisto,kaava:asemakaava_mv"
-                                format="image/png"
-                                transparent={true}
-                            />
-                        </LayersControl.BaseLayer>
-                    </LayersControl>
+                    {/* Basemap — driven by the corner switcher */}
+                    {baseLayer === 'light' && (
+                        <TileLayer
+                            key="base-light"
+                            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                            url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+                        />
+                    )}
+                    {baseLayer === 'osm' && (
+                        <TileLayer
+                            key="base-osm"
+                            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                        />
+                    )}
+                    {baseLayer === 'satellite' && (
+                        <TileLayer
+                            key="base-sat"
+                            attribution='Tiles &copy; Esri'
+                            url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                        />
+                    )}
+                    {baseLayer === 'kaava-hki' && (
+                        <WMSTileLayer
+                            key="base-kaava-hki"
+                            url="https://kartta.hel.fi/ws/geoserver/avoindata/wms"
+                            layers="Ajantasa_asemakaava_maanpaallinen_varillinen"
+                            format="image/png"
+                            transparent={true}
+                        />
+                    )}
+                    {baseLayer === 'kaava-espoo' && (
+                        <WMSTileLayer
+                            key="base-kaava-espoo"
+                            url="https://kartat.espoo.fi/teklaogcweb/wms.ashx"
+                            layers="Ajantasa_asemakaava_vektori"
+                            format="image/png"
+                            transparent={true}
+                            version="1.1.1"
+                        />
+                    )}
+                    {baseLayer === 'kaava-vantaa' && (
+                        <WMSTileLayer
+                            key="base-kaava-vantaa"
+                            url="https://gis.vantaa.fi/geoserver/wms"
+                            layers="kaava:asemakaavahakemisto,kaava:asemakaava_mv"
+                            format="image/png"
+                            transparent={true}
+                        />
+                    )}
 
                     {/* Analysis Layers */}
                     <Pane name="plot-overlays" style={{ zIndex: 450 }}>
