@@ -66,6 +66,7 @@ export async function POST(request: NextRequest) {
                 'Kunta': plot.kunta || 'Helsinki',
                 'Kiinteistötunnus': plot.kiinteistotunnus || '',
                 'Tila': plot.status || '',
+                'Materiaali': plot.Wood === true ? 'Puu' : plot.Wood === false ? 'Betoni' : '',
                 'Kaavatyypit': zoningStr,
                 'Kok. Rakennusoikeus (k-m²)': buildingRight,
                 'Pinta-ala (m²)': plot.area || 0,

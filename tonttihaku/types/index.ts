@@ -71,6 +71,9 @@ export interface PlotData {
 
     // Priority Rating (1-3, 0 means unrated)
     priority?: number;
+
+    // Construction material potential: 'Puu' | 'Betoni' | '' (unknown)
+    material?: string;
 }
 
 export interface ContactLog {
@@ -91,6 +94,7 @@ export interface PlotFilters {
     status: string;
     kunnat: string[];
     priorities: number[];
+    materials: string[];
 }
 
 export interface SalesFilters {

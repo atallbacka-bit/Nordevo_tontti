@@ -45,7 +45,8 @@ export default function AddPlotModal({
         contactPerson: '',
         contactPhone: '',
         contactEmail: '',
-        priority: 0 // New Priority Field
+        priority: 0, // New Priority Field
+        material: '' // Puu / Betoni / '' (ei tiedossa)
     });
 
     // New state for initial contact log
@@ -118,7 +119,8 @@ export default function AddPlotModal({
                     soldDate: existingPlot.soldDate || new Date().toISOString().split('T')[0],
                     // Legacy fields cleared from form data as we use contactPersons state
                     contactPerson: '', contactPhone: '', contactEmail: '',
-                    priority: existingPlot.priority || 0
+                    priority: existingPlot.priority || 0,
+                    material: existingPlot.material || ''
                 });
                 setZonings(parsedZonings);
             } else {
@@ -129,7 +131,8 @@ export default function AddPlotModal({
                     deadline: '', address: '', kunta: 'Helsinki', kiinteistotunnus: '', createdBy: username || '', updatedBy: '',
                     buyer: '', finalPrice: '', soldDate: new Date().toISOString().split('T')[0],
                     contactPerson: '', contactPhone: '', contactEmail: '',
-                    priority: 0
+                    priority: 0,
+                    material: ''
                 });
                 setZonings([{ type: 'AK', buildingRight: 0 }]);
                 setContactPersons([{ id: '1', name: '', phone: '', email: '' }]);
@@ -356,16 +359,27 @@ export default function AddPlotModal({
                             </div>
                         </div>
 
-                        {/* Priority field - essential */}
-                        <div className="col-span-2">
-                            <label className="block text-xs font-semibold text-gray-700 uppercase">Prioriteetti</label>
-                            <select name="priority" value={formData.priority} onChange={handleChange} className="w-full border rounded p-2 text-sm bg-white">
-                                <option value={0}>- Ei luokiteltu -</option>
-                                <option value={1}>1 - Korkea prioriteetti</option>
-                                <option value={2}>2 - Keskikorkea prioriteetti</option>
-                                <option value={3}>3 - Matala prioriteetti</option>
-                            </select>
-                            <p className="text-xs text-gray-500 mt-1">1 = korkea, 3 = matala</p>
+                        {/* Priority + Material fields - essential */}
+                        <div className="col-span-2 grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-700 uppercase">Prioriteetti</label>
+                                <select name="priority" value={formData.priority} onChange={handleChange} className="w-full border rounded p-2 text-sm bg-white">
+                                    <option value={0}>- Ei luokiteltu -</option>
+                                    <option value={1}>1 - Korkea prioriteetti</option>
+                                    <option value={2}>2 - Keskikorkea prioriteetti</option>
+                                    <option value={3}>3 - Matala prioriteetti</option>
+                                </select>
+                                <p className="text-xs text-gray-500 mt-1">1 = korkea, 3 = matala</p>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-semibold text-gray-700 uppercase">Materiaali</label>
+                                <select name="material" value={formData.material} onChange={handleChange} className="w-full border rounded p-2 text-sm bg-white">
+                                    <option value="">- Ei tiedossa -</option>
+                                    <option value="Puu">Puu</option>
+                                    <option value="Betoni">Betoni</option>
+                                </select>
+                                <p className="text-xs text-gray-500 mt-1">Puurakentamisen potentiaali</p>
+                            </div>
                         </div>
 
                         {/* Description - essential */}

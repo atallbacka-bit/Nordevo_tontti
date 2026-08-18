@@ -33,7 +33,10 @@ CREATE TABLE IF NOT EXISTS plots (
     "contactPhone" text DEFAULT '',
     "contactEmail" text DEFAULT '',
     contacts text DEFAULT '[]',
-    "contactPersons" text DEFAULT '[]'
+    "contactPersons" text DEFAULT '[]',
+    priority integer DEFAULT 0,
+    -- Wood construction potential: true = Puu, false = Betoni, null = unknown
+    "Wood" boolean
 );
 
 -- Allow all operations (we handle auth at the API level with shared password)

@@ -341,7 +341,8 @@ export default function MapComponent() {
         buildingRightMax: '',
         status: 'Vapaa,Kilpailussa,Tarjottu,Pidossa',
         kunnat: [],
-        priorities: []
+        priorities: [],
+        materials: []
     });
 
     // Sales filters state
@@ -502,6 +503,12 @@ export default function MapComponent() {
             if (plotFilters.priorities && plotFilters.priorities.length > 0) {
                 const plotPriority = plot.priority || 0;
                 if (!plotFilters.priorities.includes(plotPriority)) return false;
+            }
+
+            // Apply material filter ('' = unknown/not classified)
+            if (plotFilters.materials && plotFilters.materials.length > 0) {
+                const plotMaterial = plot.material || '';
+                if (!plotFilters.materials.includes(plotMaterial)) return false;
             }
 
             return true;
@@ -1236,6 +1243,14 @@ export default function MapComponent() {
                                                 </div>
 
                                                 <div className="grid grid-cols-2 gap-x-2 text-gray-700">
+                                                    {plot.material && (
+                                                        <>
+                                                            <span>Materiaali:</span>
+                                                            <span className={`font-medium ${plot.material === 'Puu' ? 'text-amber-700' : ''}`}>
+                                                                {plot.material}
+                                                            </span>
+                                                        </>
+                                                    )}
                                                     <span>Pinta-ala:</span> <span className="font-medium">{plot.area} m²</span>
                                                     <span>{plot.status === 'Tarjottu' ? 'Tarjous:' : 'Hinta-arvio:'}</span>
                                                     <span className="font-medium">

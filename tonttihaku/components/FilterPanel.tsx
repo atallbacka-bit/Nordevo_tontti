@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { ZONING_TYPES, STATUS_OPTIONS } from '@/lib/constants';
+import { ZONING_TYPES, STATUS_OPTIONS, MATERIAL_OPTIONS } from '@/lib/constants';
 import { PlotData, PlotFilters, SalesFilters, BusinessPlotFilters } from '@/types';
 
 interface FilterState {
@@ -89,6 +89,7 @@ export default function FilterPanel({
     const [plotStatus, setPlotStatus] = useState('Vapaa,Kilpailussa,Tarjottu,Pidossa');
     const [plotKunnat, setPlotKunnat] = useState<string[]>([]);
     const [plotPriorities, setPlotPriorities] = useState<number[]>([]);
+    const [plotMaterials, setPlotMaterials] = useState<string[]>([]);
     const [kuntaDropdownOpen, setKuntaDropdownOpen] = useState(false);
 
     // Plot search state
@@ -139,14 +140,15 @@ export default function FilterPanel({
     const [salesBRMax, setSalesBRMax] = useState('');
 
     // Update parent when plot filters change
-    const updatePlotFilters = (zonings: string[], brMin: string, brMax: string, status: string, kunnat: string[], priorities: number[]) => {
+    const updatePlotFilters = (zonings: string[], brMin: string, brMax: string, status: string, kunnat: string[], priorities: number[], materials: string[]) => {
         onPlotFiltersChange?.({
             zoningTypes: zonings,
             buildingRightMin: brMin,
             buildingRightMax: brMax,
             status: status,
             kunnat: kunnat,
-            priorities: priorities
+            priorities: priorities,
+            materials: materials
         });
     };
 
@@ -161,7 +163,7 @@ export default function FilterPanel({
 
     // Sync initial state on mount
     useEffect(() => {
-        updatePlotFilters(plotZoningTypes, plotBRMin, plotBRMax, plotStatus, plotKunnat, plotPriorities);
+        updatePlotFilters(plotZoningTypes, plotBRMin, plotBRMax, plotStatus, plotKunnat, plotPriorities, plotMaterials);
     }, []);
 
     // Auto-select new kunnat when they appear in the data
@@ -174,7 +176,7 @@ export default function FilterPanel({
                 // Also remove any that no longer exist in available
                 const filtered = updatedKunnat.filter(k => availableKunnat.includes(k));
                 setPlotKunnat(filtered);
-                updatePlotFilters(plotZoningTypes, plotBRMin, plotBRMax, plotStatus, filtered, plotPriorities);
+                updatePlotFilters(plotZoningTypes, plotBRMin, plotBRMax, plotStatus, filtered, plotPriorities, plotMaterials);
             }
         }
     }, [availableKunnat]);
@@ -187,7 +189,18 @@ export default function FilterPanel({
             newPriorities = [...plotPriorities, priority];
         }
         setPlotPriorities(newPriorities);
-        updatePlotFilters(plotZoningTypes, plotBRMin, plotBRMax, plotStatus, plotKunnat, newPriorities);
+        updatePlotFilters(plotZoningTypes, plotBRMin, plotBRMax, plotStatus, plotKunnat, newPriorities, plotMaterials);
+    };
+
+    const togglePlotMaterial = (value: string) => {
+        let newMaterials: string[];
+        if (plotMaterials.includes(value)) {
+            newMaterials = plotMaterials.filter(m => m !== value);
+        } else {
+            newMaterials = [...plotMaterials, value];
+        }
+        setPlotMaterials(newMaterials);
+        updatePlotFilters(plotZoningTypes, plotBRMin, plotBRMax, plotStatus, plotKunnat, plotPriorities, newMaterials);
     };
 
     const togglePlotZoning = (code: string) => {
@@ -211,7 +224,7 @@ export default function FilterPanel({
         // For now, allow empty or maybe revert to all? Let's allow empty as standard toggle behavior.
 
         setPlotZoningTypes(newZonings);
-        updatePlotFilters(newZonings, plotBRMin, plotBRMax, plotStatus, plotKunnat, plotPriorities);
+        updatePlotFilters(newZonings, plotBRMin, plotBRMax, plotStatus, plotKunnat, plotPriorities, plotMaterials);
     };
 
     const togglePlotKunta = (value: string) => {
@@ -222,14 +235,14 @@ export default function FilterPanel({
             newKunnat = [...plotKunnat, value];
         }
         setPlotKunnat(newKunnat);
-        updatePlotFilters(plotZoningTypes, plotBRMin, plotBRMax, plotStatus, newKunnat, plotPriorities);
+        updatePlotFilters(plotZoningTypes, plotBRMin, plotBRMax, plotStatus, newKunnat, plotPriorities, plotMaterials);
     };
 
     const toggleAllKunnat = () => {
         const allSelected = availableKunnat.every(k => plotKunnat.includes(k));
         const newKunnat = allSelected ? [] : [...availableKunnat];
         setPlotKunnat(newKunnat);
-        updatePlotFilters(plotZoningTypes, plotBRMin, plotBRMax, plotStatus, newKunnat, plotPriorities);
+        updatePlotFilters(plotZoningTypes, plotBRMin, plotBRMax, plotStatus, newKunnat, plotPriorities, plotMaterials);
     };
 
     const toggleSalesZoning = (code: string) => {
@@ -485,7 +498,7 @@ export default function FilterPanel({
                                                                     }
                                                                     const statusStr = newStatus.join(',');
                                                                     setPlotStatus(statusStr);
-                                                                    updatePlotFilters(plotZoningTypes, plotBRMin, plotBRMax, statusStr, plotKunnat, plotPriorities);
+                                                                    updatePlotFilters(plotZoningTypes, plotBRMin, plotBRMax, statusStr, plotKunnat, plotPriorities, plotMaterials);
                                                                 }}
                                                                 className="hidden"
                                                             />
@@ -580,6 +593,28 @@ export default function FilterPanel({
                                             </div>
                                         </div>
 
+                                        {/* Material Filter (Puu/Betoni) */}
+                                        <div>
+                                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Materiaali</label>
+                                            <div className="flex flex-wrap gap-1.5">
+                                                {[...MATERIAL_OPTIONS, { value: '', label: '-' }].map(m => (
+                                                    <button
+                                                        key={m.value || 'none'}
+                                                        type="button"
+                                                        onClick={() => togglePlotMaterial(m.value)}
+                                                        className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-all border ${plotMaterials.includes(m.value)
+                                                            ? (m.value === 'Puu'
+                                                                ? 'bg-amber-700 text-white border-amber-700 shadow-sm'
+                                                                : 'bg-slate-800 text-white border-slate-800 shadow-sm')
+                                                            : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                                                            }`}
+                                                    >
+                                                        {m.label}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+
                                         {/* Building Right Filter */}
                                         <div>
                                             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Rakennusoikeus (k-m²)</label>
@@ -591,7 +626,7 @@ export default function FilterPanel({
                                                         value={plotBRMin}
                                                         onChange={(e) => {
                                                             setPlotBRMin(e.target.value);
-                                                            updatePlotFilters(plotZoningTypes, e.target.value, plotBRMax, plotStatus, plotKunnat, plotPriorities);
+                                                            updatePlotFilters(plotZoningTypes, e.target.value, plotBRMax, plotStatus, plotKunnat, plotPriorities, plotMaterials);
                                                         }}
                                                         className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
                                                     />
@@ -604,7 +639,7 @@ export default function FilterPanel({
                                                         value={plotBRMax}
                                                         onChange={(e) => {
                                                             setPlotBRMax(e.target.value);
-                                                            updatePlotFilters(plotZoningTypes, plotBRMin, e.target.value, plotStatus, plotKunnat, plotPriorities);
+                                                            updatePlotFilters(plotZoningTypes, plotBRMin, e.target.value, plotStatus, plotKunnat, plotPriorities, plotMaterials);
                                                         }}
                                                         className="w-full px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
                                                     />

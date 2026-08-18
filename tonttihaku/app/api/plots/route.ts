@@ -9,6 +9,27 @@ function normalizeKunta(kunta: string): string {
     return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
 }
 
+// DB stores wood potential as a nullable boolean column "Wood";
+// the app uses material: 'Puu' | 'Betoni' | '' (unknown)
+function materialToWood(material: any): boolean | null {
+    if (material === 'Puu') return true;
+    if (material === 'Betoni') return false;
+    return null;
+}
+
+function woodToMaterial(wood: any): string {
+    if (wood === true) return 'Puu';
+    if (wood === false) return 'Betoni';
+    return '';
+}
+
+function mapPlotRows(rows: any[] | null): any[] {
+    return (rows || []).map(({ Wood, ...plot }: any) => ({
+        ...plot,
+        material: woodToMaterial(Wood),
+    }));
+}
+
 export async function GET() {
     try {
         const supabase = getSupabaseAdmin();
@@ -17,7 +38,7 @@ export async function GET() {
             .select('*');
 
         if (error) throw error;
-        return NextResponse.json(plots || []);
+        return NextResponse.json(mapPlotRows(plots));
     } catch (error: any) {
         console.error("PLOTS API Error:", error);
         return NextResponse.json({ error: "Failed to read data" }, { status: 500 });
@@ -65,13 +86,14 @@ export async function POST(req: Request) {
                 contactEmail: plot.contactEmail || '',
                 contacts: typeof plot.contacts === 'string' ? plot.contacts : JSON.stringify(plot.contacts || []),
                 contactPersons: typeof plot.contactPersons === 'string' ? plot.contactPersons : JSON.stringify(plot.contactPersons || []),
-                priority: Number(plot.priority) || 0
+                priority: Number(plot.priority) || 0,
+                Wood: materialToWood(plot.material)
             });
 
             if (error) throw error;
 
             const { data: plots } = await supabase.from('plots').select('*');
-            return NextResponse.json({ success: true, plots: plots || [] });
+            return NextResponse.json({ success: true, plots: mapPlotRows(plots) });
 
         } else if (action === 'update') {
             // First get existing
@@ -120,13 +142,15 @@ export async function POST(req: Request) {
                     contacts: typeof updated.contacts === 'string' ? updated.contacts : JSON.stringify(updated.contacts || []),
                     contactPersons: typeof updated.contactPersons === 'string' ? updated.contactPersons : JSON.stringify(updated.contactPersons || []),
                     priority: Number(updated.priority) || 0,
+                    // Partial updates without a material field keep the stored value
+                    Wood: updated.material !== undefined ? materialToWood(updated.material) : (existing.Wood ?? null),
                 })
                 .eq('id', id);
 
             if (error) throw error;
 
             const { data: plots } = await supabase.from('plots').select('*');
-            return NextResponse.json({ success: true, plots: plots || [] });
+            return NextResponse.json({ success: true, plots: mapPlotRows(plots) });
 
         } else if (action === 'delete') {
             const { error } = await supabase
@@ -137,7 +161,7 @@ export async function POST(req: Request) {
             if (error) throw error;
 
             const { data: plots } = await supabase.from('plots').select('*');
-            return NextResponse.json({ success: true, plots: plots || [] });
+            return NextResponse.json({ success: true, plots: mapPlotRows(plots) });
 
         } else if (action === 'addNote') {
             const { data: existing, error: fetchError } = await supabase
@@ -171,7 +195,7 @@ export async function POST(req: Request) {
             if (error) throw error;
 
             const { data: plots } = await supabase.from('plots').select('*');
-            return NextResponse.json({ success: true, plots: plots || [] });
+            return NextResponse.json({ success: true, plots: mapPlotRows(plots) });
 
         } else if (action === 'addContact') {
             const { data: existing, error: fetchError } = await supabase
@@ -204,7 +228,7 @@ export async function POST(req: Request) {
             if (error) throw error;
 
             const { data: plots } = await supabase.from('plots').select('*');
-            return NextResponse.json({ success: true, plots: plots || [] });
+            return NextResponse.json({ success: true, plots: mapPlotRows(plots) });
         }
 
         return NextResponse.json({ error: "Invalid action" }, { status: 400 });

@@ -68,6 +68,13 @@ export const STATUS_OPTIONS = [
     { value: 'Pidossa', label: 'Pidossa', color: 'text-purple-600' },
 ];
 
+// Construction material potential (from Tonttilistaus.xlsx "Wood /Concrete" column)
+// '' (empty) on a plot means unknown / not classified
+export const MATERIAL_OPTIONS = [
+    { value: 'Puu', label: 'Puu' },
+    { value: 'Betoni', label: 'Betoni' },
+];
+
 export const MML_API_KEY_ENV_VAR = 'MML_API_KEY';
 
 export const KUNTA_OPTIONS = [
