@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import {
     SthDataset, AreaStats, analyzePoint, formatMonthsInv,
-    formatSnapshot, formatYm, fmtEur, haversineKm,
+    formatSnapshot, formatYm, fmtEur, haversineKm, gradeProject,
 } from '@/lib/sthAnalysis';
 import {
     loadPostalAreas, loadRailStations, loadAmenities,
@@ -493,6 +493,41 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
                         </>
                     )}
                 </Section>
+
+                {/* Reference buildings: the STH projects the numbers come from */}
+                {a.nearby.length > 0 && (
+                    <Section title="Vertailukohteet" defaultOpen={false} badge={<span className="text-[10px] text-slate-400 font-semibold">{a.nearby.length}</span>}>
+                        <div className="space-y-1.5">
+                            {a.nearby.slice(0, 20).map(({ project: p, distanceKm }) => {
+                                const grade = gradeProject(p);
+                                const tenureChip = p.tenure === 'oma'
+                                    ? { label: 'oma', style: { background: '#d8e7fa', color: '#1e40af' } }
+                                    : p.tenure === 'vuokra'
+                                        ? { label: 'vuokra', style: { background: '#fdeec9', color: '#92400e' } }
+                                        : { label: 'seka', style: { background: '#e2e8f0', color: '#475569' } };
+                                return (
+                                    <div key={p.key} className="rounded-lg bg-slate-50 px-2 py-1.5">
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="w-2 h-2 rounded-full flex-none" style={{ background: grade.color }} title={grade.label} />
+                                            <span className="text-[11px] font-bold truncate flex-1">{p.name.replace(/^As\.?\s?Oy\s?(Helsingin|Espoon|Vantaan)?\s?/i, '')}</span>
+                                            {p.eurM2 > 0 && <span className="text-[11px] font-bold tabular-nums flex-none">{fmtEur(p.eurM2)} €/m²</span>}
+                                            <span className="text-[8.5px] font-bold px-1 py-px rounded flex-none" style={tenureChip.style}>{tenureChip.label}</span>
+                                        </div>
+                                        <div className="text-[9.5px] text-slate-500 mt-0.5 pl-3.5 truncate">
+                                            {p.builder && p.builder !== 'Ei ole tiedossa' ? `${p.builder} · ` : ''}
+                                            {fmtKm(distanceKm)} · {p.completed ? 'valmis' : `valm. ${formatYm(p.completionYm)}`} · myyty {p.sold.toFixed(0)}/{p.units.toFixed(0)}
+                                            {p.sold12 > 0 ? ` · 12 kk: ${p.sold12.toFixed(0)}` : ''}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                            {a.nearby.length > 20 && <div className="text-[10px] text-slate-400">+ {a.nearby.length - 20} muuta säteellä</div>}
+                            <div className="text-[9.5px] text-slate-400 pt-0.5">
+                                Analyysin luvut lasketaan näistä kohteista. Kytke Uudiskohteet (STH) -taso nähdäksesi ne kartalla.
+                            </div>
+                        </div>
+                    </Section>
+                )}
 
                 {/* Price level */}
                 <Section title="Hintataso">
