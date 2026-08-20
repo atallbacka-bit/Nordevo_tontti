@@ -399,13 +399,14 @@ export function computeAreaStats(projects: SthProject[]): Map<string, AreaStats>
         areas.push({ ...agg, code, hotness: null, hotnessParts: null, lowConfidence: agg.projects < 2 || agg.units < 20, projectList: list });
     });
 
-    // percentile scales across areas
-    const invMonths = areas.map(a => a.monthsInventory == null ? -1 : -a.monthsInventory).sort((x, y) => x - y);
+    // percentile scales across areas; frozen areas (no sales, stock left) score
+    // imu 0 directly and are excluded from the comparison scale so they don't
+    // deflate every real area's percentile
+    const invMonths = areas.filter(a => a.monthsInventory != null).map(a => -a.monthsInventory!).sort((x, y) => x - y);
     const demand = areas.map(a => a.sold12).sort((x, y) => x - y);
 
     for (const a of areas) {
-        const imuRaw = a.monthsInventory == null ? -999 : -a.monthsInventory;
-        const imu = a.monthsInventory == null ? 0 : percentileOf(invMonths, imuRaw);
+        const imu = a.monthsInventory == null ? 0 : percentileOf(invMonths, -a.monthsInventory);
         const kysynta = percentileOf(demand, a.sold12);
         const momentum = a.momentum == null ? 50 : Math.max(0, Math.min(100, 50 * a.momentum));
         const paine = 100 * (1 - a.cutShare);
@@ -499,7 +500,9 @@ export function analyzePoint(lat: number, lng: number, radiusKm: number, project
     // sales). Split by plot tenure — leasehold €/m² excludes land, so the two
     // groups are never pooled into one median.
     const movers = list.filter(p => p.sold12 > 0 && (p.monthsInventory == null ? false : p.monthsInventory <= 12) && p.financing === 'V');
-    const stalled = list.filter(p => p.forSale > 0 && (p.monthsInventory == null || p.monthsInventory > 24));
+    // V-only like the movers: hitas-type (H) asking prices are capped and would
+    // deflate the stalled median, manufacturing a false "expensive sells" gap
+    const stalled = list.filter(p => p.forSale > 0 && (p.monthsInventory == null || p.monthsInventory > 24) && p.financing === 'V');
     const tenureSplit = (sub: SthProject[]): TenureSplitPrice => {
         const out: TenureSplitPrice = { oma: null, vuokra: null };
         for (const g of ['oma', 'vuokra'] as const) {
@@ -572,6 +575,169 @@ export function analyzePoint(lat: number, lng: number, radiusKm: number, project
         clearingPrice, stalledPrice,
         products, mixGap, builders, pipeline,
     };
+}
+
+// ─── Movers vs stalled: why does some stock sell? ────────────
+//
+// The user's field observation: selling stock is often MORE expensive than
+// stalled stock — price alone doesn't explain absorption. This decomposition
+// compares the two groups on the attributes we do observe (product, size,
+// tenure, completion state, price-cut history) so the panel can say WHY the
+// sellers sell, and show the price inversion when it exists.
+
+export interface GroupProfile {
+    n: number;
+    medEurM2Own: number | null;
+    medEurM2Lease: number | null;
+    medAvgSize: number | null;
+    ownShare: number;          // own-plot projects / n
+    completedShare: number;    // completed projects / n
+    cutShare: number;          // projects with a price cut / n
+    smallHomeShare: number;    // pientalo + rivitalo / n
+    kompaktiShare: number;     // kt-kompakti / n
+    medUnits: number | null;
+}
+
+export interface MoverStalledCompare {
+    movers: SthProject[];
+    stalled: SthProject[];
+    m: GroupProfile;
+    s: GroupProfile;
+    /** own-plot price gap: movers minus stalled, €/m² (null if either side missing) */
+    gapOwn: number | null;
+    gapLease: number | null;
+    /** true when selling stock prices ABOVE stalled stock on comparable tenure */
+    inverted: boolean;
+    /** completed projects that still hold unsold stock, and how many units */
+    finishedUnsoldUnits: number;
+    finishedStalledCount: number;
+    /** ready-made Finnish explanation lines, most significant first */
+    reasons: string[];
+}
+
+function profile(list: SthProject[]): GroupProfile {
+    const own = list.filter(p => p.tenure === 'oma' && p.eurM2 > 0);
+    const lease = list.filter(p => p.tenure === 'vuokra' && p.eurM2 > 0);
+    const n = list.length || 1;
+    return {
+        n: list.length,
+        medEurM2Own: median(own.map(p => p.eurM2)),
+        medEurM2Lease: median(lease.map(p => p.eurM2)),
+        medAvgSize: median(list.map(p => p.avgSize)),
+        ownShare: list.filter(p => p.tenure === 'oma').length / n,
+        completedShare: list.filter(p => p.completed).length / n,
+        cutShare: list.filter(p => p.priceCut).length / n,
+        smallHomeShare: list.filter(p => p.productClass === 'pientalo' || p.productClass === 'rivitalo').length / n,
+        kompaktiShare: list.filter(p => p.productClass === 'kt-kompakti').length / n,
+        medUnits: median(list.map(p => p.units)),
+    };
+}
+
+export function compareMoversStalled(list: SthProject[]): MoverStalledCompare | null {
+    const movers = list.filter(p => p.sold12 > 0 && p.monthsInventory != null && p.monthsInventory <= 12 && p.financing === 'V');
+    const stalledAll = list.filter(p => p.forSale > 0 && (p.monthsInventory == null || p.monthsInventory > 24));
+    // price comparison is V-only (hitas-type caps would fake a price gap);
+    // regulated stalled stock is reported separately as supply overhang
+    const stalled = stalledAll.filter(p => p.financing === 'V');
+    const regulatedStalled = stalledAll.length - stalled.length;
+    if (movers.length < 1 || stalled.length < 1) return null;
+    const m = profile(movers), s = profile(stalled);
+
+    const gapOwn = m.medEurM2Own != null && s.medEurM2Own != null ? m.medEurM2Own - s.medEurM2Own : null;
+    const gapLease = m.medEurM2Lease != null && s.medEurM2Lease != null ? m.medEurM2Lease - s.medEurM2Lease : null;
+    const inverted = (gapOwn != null && gapOwn > 100) || (gapOwn == null && gapLease != null && gapLease > 100);
+
+    // overhang counts include regulated stock — finished unsold units press the
+    // market regardless of financing form
+    const stalledCompleted = stalledAll.filter(p => p.completed);
+    const finishedUnsoldUnits = Math.round(stalledCompleted.reduce((acc, p) => acc + p.forSale, 0));
+
+    // Reasons ranked by what actually predicts absorption in the PKS dataset
+    // (empirical audit 8/2026): builder identity is the strongest single
+    // predictor, then product class + project scale, supply concentration and
+    // stage; absolute €/m² alone predicts almost nothing.
+    const reasons: string[] = [];
+    const enough = movers.length >= 2 && stalled.length >= 2;
+
+    // 1. price direction — name it either way so the reader isn't left guessing
+    const gap = gapOwn ?? gapLease;
+    if (inverted) {
+        reasons.push(`Myyvät kohteet ovat n. ${fmtEur(Math.abs(gap!))} €/m² kalliimpia kuin seisovat — hinta ei selitä menekkiä tässä, vaan tuote, tekijä ja mikrosijainti.`);
+    } else if (gap != null && gap < -300 && enough) {
+        reasons.push(`Myyvät ovat n. ${fmtEur(Math.abs(gap))} €/m² edullisempia — hinnoittelu alueen kauppatasoon ratkaisee.`);
+    }
+
+    // 2. builder concentration
+    const topBuilder = (list: SthProject[]) => {
+        const counts = new Map<string, number>();
+        for (const p of list) {
+            if (!p.builder || p.builder === 'Ei ole tiedossa') continue;
+            counts.set(p.builder, (counts.get(p.builder) || 0) + 1);
+        }
+        let best: { name: string; n: number } | null = null;
+        for (const [name, n] of Array.from(counts.entries())) {
+            if (!best || n > best.n) best = { name, n };
+        }
+        return best;
+    };
+    const sb = topBuilder(stalled);
+    if (sb && sb.n >= 2 && sb.n / stalled.length >= 0.5) {
+        reasons.push(`Seisova kanta keskittyy yhdelle rakentajalle: ${sb.name} (${sb.n} kohdetta) — ongelma voi olla kohde- eikä aluekohtainen.`);
+    }
+    const mb = topBuilder(movers);
+    if (mb && mb.n >= 3 && mb.n / movers.length >= 0.6) {
+        reasons.push(`Myynti nojaa vahvasti yhteen tekijään: ${mb.name} (${mb.n} kohdetta) — konsepti todistetusti toimii täällä.`);
+    }
+
+    if (enough) {
+        // 3. product class & unit size
+        if (m.smallHomeShare - s.smallHomeShare > 0.25) {
+            reasons.push('Myyvissä painottuvat pientalot ja rivitalot, seisovissa kerrostalot.');
+        } else if (s.smallHomeShare - m.smallHomeShare > 0.25) {
+            reasons.push('Myyvissä painottuvat kerrostalot, seisovissa pientalokohteet.');
+        }
+        if (m.medAvgSize != null && s.medAvgSize != null) {
+            const sizeDelta = m.medAvgSize - s.medAvgSize;
+            if (Math.abs(sizeDelta) >= 8 && Math.abs(m.smallHomeShare - s.smallHomeShare) <= 0.25) {
+                reasons.push(sizeDelta < 0
+                    ? `Myyvissä asunnot ovat pienempiä (ka. ${Math.round(m.medAvgSize)} vs ${Math.round(s.medAvgSize)} m²) — pienempi kokonaishinta liikkuu.`
+                    : `Myyvissä asunnot ovat suurempia (ka. ${Math.round(m.medAvgSize)} vs ${Math.round(s.medAvgSize)} m²) — alue vetää tilaa hakevia.`);
+            }
+        }
+        // 4. project scale: small packages clear, big projects stall
+        if (m.medUnits != null && s.medUnits != null && s.medUnits - m.medUnits >= 15) {
+            reasons.push(`Myyvät ovat pienempiä kohteita (md. ${Math.round(m.medUnits)} vs ${Math.round(s.medUnits)} as.) — iso kohde tarvitsee montaa ostajaa samaan aikaan.`);
+        }
+        // 5. tenure
+        if (m.ownShare - s.ownShare > 0.3) {
+            reasons.push('Myyvät ovat useammin omalla tontilla — vuokratontti karsii ostajia täällä.');
+        }
+        const sekaShare = stalled.filter(p => p.tenure === 'seka').length / stalled.length;
+        if (sekaShare >= 0.3) {
+            reasons.push('Sekamuotoinen tonttijärjestely (osaomistus) korostuu seisovissa — vaikeasti myytävä rakenne.');
+        }
+        // 6. price cuts: cuts tend to RE-ACTIVATE sales; stalled-with-cuts is the hard core
+        if (s.cutShare > 0.4 && s.cutShare - m.cutShare > 0.2) {
+            reasons.push(`Seisovista ${Math.round(s.cutShare * 100)} % on jo laskenut hintaa eikä kauppa silti käy — ongelma tuskin ratkeaa hinnalla.`);
+        } else if (m.cutShare >= 0.3) {
+            reasons.push(`Osa myyvistä aktivoitui vasta hinnanalennuksen jälkeen (${Math.round(m.cutShare * 100)} % myyvistä laskenut hintaa).`);
+        }
+    }
+    // 7. finished-unsold overhang — the hardest evidence of overpricing or wrong product
+    if (finishedStockMatters(stalledCompleted.length, finishedUnsoldUnits)) {
+        reasons.push(`${stalledCompleted.length} valmista kohdetta seisoo myymättä (${finishedUnsoldUnits} valmista asuntoa) — valmis varasto painaa koko alueen hintatasoa.`);
+    }
+    if (regulatedStalled >= 2) {
+        reasons.push(`Lisäksi ${regulatedStalled} säänneltyä kohdetta (hitas/ara-tyyppi) seisoo — eivät mukana hintavertailussa, mutta kilpailevat samoista ostajista.`);
+    }
+    if (inverted && reasons.length === 1) {
+        reasons.push('Ero ei selity tuotejaolla — todennäköisiä tekijöitä ovat mikrosijainti (ranta, näkymät, palvelut) ja kohteen laatutaso.');
+    }
+    return { movers, stalled, m, s, gapOwn, gapLease, inverted, finishedUnsoldUnits, finishedStalledCount: stalledCompleted.length, reasons };
+}
+
+function finishedStockMatters(projects: number, units: number): boolean {
+    return projects >= 2 && units >= 15;
 }
 
 // ─── Formatting helpers ──────────────────────────────────────

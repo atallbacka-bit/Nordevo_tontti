@@ -162,7 +162,9 @@ export default function SthMarketLayer({ showProjects, showHeatmap, advisorOn, s
 
     // advisor state
     const [analysisPoint, setAnalysisPoint] = useState<{ lat: number; lng: number } | null>(null);
-    const [radiusKm, setRadiusKm] = useState(1.5);
+    // 1 km default: larger radii pull in projects from across water/rail
+    // barriers (e.g. Katajanokka picking up Sompasaari) — tight by default
+    const [radiusKm, setRadiusKm] = useState(1);
     const [parcel, setParcel] = useState<ParcelInfo | null>(null);
 
     const [postalFC, setPostalFC] = useState<PostalAreaFC | null>(null);

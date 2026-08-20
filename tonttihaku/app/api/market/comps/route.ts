@@ -32,6 +32,11 @@ export interface CompListing {
     lat: number | null;
     lng: number | null;
     postcode: string;
+    daysOnMarket: number | null;  // from published — survives bumps (publishedSort carries those)
+    bumped: boolean;              // listing renewed/bumped since publish → long-running, still marketed
+    priceCut: boolean;            // priceChanged set → asking has been changed (in practice: reduced)
+    visits: number | null;        // cumulative listing page views
+    visitsWeekly: number | null;  // views last week — current buyer interest
 }
 
 const g = globalThis as any;
@@ -39,7 +44,7 @@ if (!g.__oikotieCache) {
     g.__oikotieCache = {
         tokens: null as OtaTokens | null,
         locations: new Map<string, { cardId: number; name: string } | null>(),
-        cards: new Map<string, { at: number; sale: CompListing[]; rent: CompListing[] }>(),
+        cards: new Map<string, { at: number; sale: CompListing[]; rent: CompListing[]; saleFound: number; rentFound: number }>(),
     };
 }
 const store = g.__oikotieCache;
@@ -82,14 +87,15 @@ async function oikotieGet(path: string, tokens: OtaTokens): Promise<any | null> 
     }
 }
 
-async function locationId(postcode: string, tokens: OtaTokens): Promise<{ cardId: number; name: string } | null> {
+// 'retry' = transient/auth failure — never cached, so one bad lookup can't
+// permanently blank a postcode for the process lifetime
+async function locationId(postcode: string, tokens: OtaTokens): Promise<{ cardId: number; name: string } | null | 'retry'> {
     if (store.locations.has(postcode)) return store.locations.get(postcode);
     const data = await oikotieGet(`/api/3.0/location?query=${postcode}`, tokens);
+    if (!Array.isArray(data)) return 'retry';
     let loc: { cardId: number; name: string } | null = null;
-    if (Array.isArray(data)) {
-        const hit = data.find((x: any) => x?.card?.cardType === 5 && x?.card?.name === postcode);
-        if (hit) loc = { cardId: hit.card.cardId, name: `${postcode}, ${hit.parent?.name || ''}` };
-    }
+    const hit = data.find((x: any) => x?.card?.cardType === 5 && x?.card?.name === postcode);
+    if (hit) loc = { cardId: hit.card.cardId, name: `${postcode}, ${hit.parent?.name || ''}` };
     store.locations.set(postcode, loc);
     return loc;
 }
@@ -112,6 +118,16 @@ function toListing(card: any, postcode: string, isRent: boolean): CompListing | 
     // drop non-market sale prices (asumisoikeus / osaomistus listings)
     if (!isRent && eurM2 < 1800) return null;
     if (isRent && (eurM2 < 5 || eurM2 > 80)) return null;
+    // days on market from the original publish date (verified: NOT reset when the
+    // listing is bumped — publishedSort carries the bump). Relisting under a new
+    // id is the only undetectable reset.
+    let daysOnMarket: number | null = null;
+    if (card.published) {
+        const t = Date.parse(card.published);
+        if (!isNaN(t)) daysOnMarket = Math.max(0, Math.round((Date.now() - t) / 86400000));
+    }
+    const bumped = !!(card.published && card.publishedSort
+        && Date.parse(card.publishedSort) - Date.parse(card.published) > 86400000);
     return {
         id: card.id,
         url: card.url,
@@ -128,22 +144,35 @@ function toListing(card: any, postcode: string, isRent: boolean): CompListing | 
         lat: card?.coordinates?.latitude ?? null,
         lng: card?.coordinates?.longitude ?? null,
         postcode,
+        daysOnMarket,
+        bumped,
+        priceCut: card.priceChanged != null,
+        visits: typeof card.visits === 'number' ? card.visits : null,
+        visitsWeekly: typeof card.visits_weekly === 'number' ? card.visits_weekly : null,
     };
 }
 
-async function fetchPostcode(postcode: string, tokens: OtaTokens): Promise<{ sale: CompListing[]; rent: CompListing[] } | null> {
+interface PostcodeCards { sale: CompListing[]; rent: CompListing[]; saleFound: number; rentFound: number }
+
+async function fetchPostcode(postcode: string, tokens: OtaTokens): Promise<PostcodeCards | null> {
     const cached = store.cards.get(postcode);
     if (cached && Date.now() - cached.at < CARDS_TTL) return cached;
 
     const loc = await locationId(postcode, tokens);
-    if (!loc) return { sale: [], rent: [] };
+    if (loc === 'retry') return null; // transient/auth failure — let GET refresh tokens and retry
+    if (!loc) return { sale: [], rent: [], saleFound: 0, rentFound: 0 };
     const locParam = encodeURIComponent(JSON.stringify([[loc.cardId, 5, loc.name]]));
 
-    const out = { at: Date.now(), sale: [] as CompListing[], rent: [] as CompListing[] };
-    for (const [cardType, key] of [[100, 'sale'], [101, 'rent']] as const) {
-        const data = await oikotieGet(`/api/cards?cardType=${cardType}&limit=200&locations=${locParam}`, tokens);
-        if (data?.__auth) return null; // signal token refresh
-        const cards = data?.cards;
+    const out = { at: Date.now(), sale: [] as CompListing[], rent: [] as CompListing[], saleFound: 0, rentFound: 0 };
+    for (const [cardType, key, foundKey] of [[100, 'sale', 'saleFound'], [101, 'rent', 'rentFound']] as const) {
+        // limit=500: results sort by bump date desc, so a lower cap silently drops
+        // the LONGEST-listed stock and flatters days-on-market stats
+        const data = await oikotieGet(`/api/cards?cardType=${cardType}&limit=500&locations=${locParam}`, tokens);
+        // any failure (auth, 429, network) → return null WITHOUT caching, so a
+        // transient error isn't served as "no listings" for the next 6 hours
+        if (data == null || data.__auth) return null;
+        if (typeof data.found === 'number') out[foundKey] = data.found;
+        const cards = data.cards;
         if (Array.isArray(cards)) {
             for (const c of cards) {
                 const l = toListing(c, postcode, cardType === 101);
@@ -167,6 +196,7 @@ export async function GET(req: NextRequest) {
 
     const sale: CompListing[] = [];
     const rent: CompListing[] = [];
+    let saleFound = 0, rentFound = 0;
     for (const pc of postcodes) {
         let res = await fetchPostcode(pc, tokens);
         if (res === null) {
@@ -177,6 +207,8 @@ export async function GET(req: NextRequest) {
         if (res) {
             sale.push(...res.sale);
             rent.push(...res.rent);
+            saleFound += res.saleFound;
+            rentFound += res.rentFound;
         }
     }
 
@@ -188,6 +220,8 @@ export async function GET(req: NextRequest) {
         postcodes,
         sale: dedupe(sale),
         rent: dedupe(rent),
+        saleFound,
+        rentFound,
         fetchedAt: new Date().toISOString(),
     });
 }
