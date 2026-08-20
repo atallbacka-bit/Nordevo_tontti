@@ -39,7 +39,10 @@ interface LayerStates {
     edit_mode: boolean;
     add_plot_mode: boolean;
     add_past_plot_mode?: boolean;
-    sales_analysis?: boolean;
+    sth_projects?: boolean;
+    sth_heatmap?: boolean;
+    sth_analysis?: boolean;
+    sth_plans?: boolean;
     business_plots: boolean;
 }
 
@@ -749,7 +752,10 @@ export default function FilterPanel({
                             {/* Layer Toggle Component */}
                             <div className="divide-y divide-slate-100">
                             {[
-                                { id: 'sales_analysis', label: 'Uudiskohteiden myyntidata (STH)', desc: 'Analysoi myyntidataa Excelistä' },
+                                { id: 'sth_projects', label: 'Uudiskohteet (STH)', desc: 'Myynnissä olevat kohteet, hinnat ja imu' },
+                                { id: 'sth_heatmap', label: 'Aluelämpökartta (STH)', desc: 'Postinumeroalueiden kuumuus, hinnat ja momentum' },
+                                { id: 'sth_analysis', label: 'Markkina-analyysi', desc: 'Klikkaa karttaa — analyysi valitulta säteeltä' },
+                                { id: 'sth_plans', label: 'Kaavat vireillä (Hki)', desc: 'Vireillä olevat asemakaavat' },
                                 { id: 'business_plots', label: 'Vapaat yritystontit', desc: 'Helsingin ja Espoon vapaat tontit' },
                                 { id: 'kiinteistot', label: 'Kiinteistöt', desc: 'Kiinteistörajat ja -tunnukset' },
                                 { id: 'asemakaava_info', label: 'Asemakaavatiedot', desc: 'Klikkaa karttaa nähdäksesi tiedot' },
@@ -784,9 +790,17 @@ export default function FilterPanel({
                                     </label>
                                     <p className="text-xs text-slate-500 mt-0.5 relative z-10 pointer-events-none">{layer.desc}</p>
 
-                                    {/* Sales Analysis Portal Container */}
-                                    {layer.id === 'sales_analysis' && layerStates.sales_analysis && (
-                                        <div id="sales-analysis-filters-container" className="mt-3 pt-3 border-t border-slate-100 space-y-3 animate-in fade-in duration-300 relative z-30">
+                                    {/* STH Portal Containers — filled by SthMarketLayer */}
+                                    {layer.id === 'sth_projects' && layerStates.sth_projects && (
+                                        <div id="sth-projects-filters-container" className="mt-3 pt-3 border-t border-slate-100 space-y-3 animate-in fade-in duration-300 relative z-30">
+                                        </div>
+                                    )}
+                                    {layer.id === 'sth_heatmap' && layerStates.sth_heatmap && (
+                                        <div id="sth-heatmap-filters-container" className="mt-3 pt-3 border-t border-slate-100 space-y-3 animate-in fade-in duration-300 relative z-30">
+                                        </div>
+                                    )}
+                                    {layer.id === 'sth_analysis' && layerStates.sth_analysis && (
+                                        <div id="sth-analysis-filters-container" className="mt-3 pt-3 border-t border-slate-100 space-y-3 animate-in fade-in duration-300 relative z-30">
                                         </div>
                                     )}
 

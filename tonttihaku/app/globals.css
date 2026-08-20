@@ -148,6 +148,103 @@ body {
   filter: sepia(1) saturate(10) hue-rotate(-20deg) brightness(1);
 }
 
+/* STH market layer — quiet pastel pills: dot = absorption, color = tenure.
+   Blue pastel = oma tontti · amber pastel = vuokratontti (price excludes land).
+   Own plots stay pure white, so the tinted pills read as market data. */
+.sth-pill {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 9999px;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.2);
+  padding: 3px 9px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #0f172a;
+  white-space: nowrap;
+  line-height: 1.2;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+.sth-oma {
+  background: #d8e7fa;
+  border: 1px solid rgba(37, 99, 235, 0.35);
+}
+.sth-vuokra {
+  background: #fdeec9;
+  border: 1px solid rgba(217, 119, 6, 0.4);
+}
+.sth-pill.sth-soldout {
+  opacity: 0.5;
+}
+.custom-plot-icon:hover .sth-pill {
+  transform: scale(1.08);
+  box-shadow: 0 3px 10px rgba(15, 23, 42, 0.3);
+}
+/* cluster badge: count + median €/m² per tenure, same pastel language */
+.sth-cluster-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #fff;
+  color: #0f172a;
+  border: 1px solid rgba(15, 23, 42, 0.14);
+  border-radius: 11px;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.2);
+  padding: 3px 5px 3px 8px;
+  font-family: 'Inter', system-ui, sans-serif;
+  white-space: nowrap;
+  transition: transform 0.12s ease;
+}
+.custom-plot-icon:hover .sth-cluster-pill {
+  transform: scale(1.06);
+}
+.sth-cluster-count {
+  font-size: 12.5px;
+  font-weight: 800;
+}
+.sth-cluster-prices {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sth-cluster-row {
+  font-size: 9.5px;
+  font-weight: 700;
+  line-height: 1.15;
+  padding: 1px 6px;
+  border-radius: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.sth-cluster-row.sth-oma,
+.sth-cluster-row.sth-vuokra {
+  box-shadow: none;
+}
+.sth-crosshair {
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  border: 3px solid #2563eb;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 1px 5px rgba(15, 23, 42, 0.3);
+}
+.sth-crosshair::after {
+  content: '';
+  position: absolute;
+  inset: 5px;
+  border-radius: 9999px;
+  background: #2563eb;
+}
+.sth-tooltip {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 11px;
+  line-height: 1.45;
+  border-radius: 8px;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  box-shadow: 0 3px 10px rgba(15, 23, 42, 0.15);
+}
+
 /* Glassmorphism utility */
 .glass {
     background: rgba(255, 255, 255, 0.85);

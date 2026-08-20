@@ -25,7 +25,7 @@ import L from 'leaflet';
 import FilterPanel from './FilterPanel';
 import AddPlotModal from './AddPlotModal';
 import AddPastPlotModal from './AddPastPlotModal';
-import SalesAnalysisLayer from './SalesAnalysisLayer';
+import SthMarketLayer from './SthMarketLayer';
 import BusinessPlotsLayer from './BusinessPlotsLayer';
 import { ZONING_TYPES, getZoningColor, getStatusAccent } from '@/lib/constants';
 import { PlotData, PlotFilters, SalesFilters, BusinessPlotFilters, MarkSoldData, MarkOfferedData } from '@/types';
@@ -252,7 +252,10 @@ export default function MapComponent() {
     const [showMaapera, setShowMaapera] = useState(false);
     const [showMelu, setShowMelu] = useState(false);
     const [showKorkeus, setShowKorkeus] = useState(false);
-    const [showSalesAnalysis, setShowSalesAnalysis] = useState(false);
+    const [showSthProjects, setShowSthProjects] = useState(false);
+    const [showSthHeatmap, setShowSthHeatmap] = useState(false);
+    const [showSthAdvisor, setShowSthAdvisor] = useState(false);
+    const [showSthPlans, setShowSthPlans] = useState(false);
     const [showBusinessPlots, setShowBusinessPlots] = useState(false);
 
     const wmsLayerRef = useRef<L.TileLayer.WMS>(null);
@@ -351,6 +354,8 @@ export default function MapComponent() {
     const [apartmentData, setApartmentData] = useState<any[]>([]);
 
     const [searchMarker, setSearchMarker] = useState<AddressSearchResult | null>(null);
+    // Current map center for biasing address search results toward the visible area
+    const mapCenterRef = useRef<{ lat: number; lng: number }>({ lat: 60.25, lng: 24.8 });
 
     // Check for shared plot in URL on mount
     useEffect(() => {
@@ -489,6 +494,18 @@ export default function MapComponent() {
         if (!showPlots) setShowPlots(true);
         setSelectedPlotId(plot.id);
     };
+
+    // Helper component to keep mapCenterRef in sync with the map view
+    function TrackMapCenter() {
+        const map = useMap();
+        useEffect(() => {
+            const update = () => { mapCenterRef.current = map.getCenter(); };
+            update();
+            map.on('moveend', update);
+            return () => { map.off('moveend', update); };
+        }, [map]);
+        return null;
+    }
 
     // Helper component to fly to an address search result
     function FlyToSearch() {
@@ -817,7 +834,10 @@ export default function MapComponent() {
         if (layer === 'korkeus') setShowKorkeus(visible);
         if (layer === 'kiinteistot') setShowKiinteistot(visible);
         if (layer === 'asemakaava_info') setShowAsemakaavaInfo(visible);
-        if (layer === 'sales_analysis') setShowSalesAnalysis(visible);
+        if (layer === 'sth_projects') setShowSthProjects(visible);
+        if (layer === 'sth_heatmap') setShowSthHeatmap(visible);
+        if (layer === 'sth_analysis') setShowSthAdvisor(visible);
+        if (layer === 'sth_plans') setShowSthPlans(visible);
         if (layer === 'business_plots') setShowBusinessPlots(visible);
 
         if (layer === 'sales') {
@@ -883,7 +903,10 @@ export default function MapComponent() {
                     edit_mode: editMode,
                     add_plot_mode: addPlotMode,
                     add_past_plot_mode: addPastPlotMode,
-                    sales_analysis: showSalesAnalysis,
+                    sth_projects: showSthProjects,
+                    sth_heatmap: showSthHeatmap,
+                    sth_analysis: showSthAdvisor,
+                    sth_plans: showSthPlans,
                     business_plots: showBusinessPlots
                 }}
                 onPlotFiltersChange={setPlotFilters}
@@ -910,7 +933,7 @@ export default function MapComponent() {
                     </button>
                 )}
 
-                <AddressSearch onSelect={setSearchMarker} />
+                <AddressSearch onSelect={setSearchMarker} getFocusPoint={() => mapCenterRef.current} />
 
                 {/* Basemap switcher */}
                 <div className="absolute top-[12px] right-[12px] z-[1000]">
@@ -948,6 +971,7 @@ export default function MapComponent() {
 
                 <MapContainer center={[60.25, 24.8]} zoom={10} style={{ height: '100%', width: '100%' }}>
                     <MapEvents />
+                    <TrackMapCenter />
                     <FlyToPlot />
                     <FlyToSearch />
                     {searchMarker && (
@@ -1233,7 +1257,12 @@ export default function MapComponent() {
                     <WMSUpdater cqlFilter={cqlFilter} opacity={wmsOpacity} layerRef={wmsLayerRef} />
 
                     {/* Custom Analysis Layers - outside Pane for UI visibility */}
-                    <SalesAnalysisLayer visible={showSalesAnalysis} />
+                    <SthMarketLayer
+                        showProjects={showSthProjects}
+                        showHeatmap={showSthHeatmap}
+                        advisorOn={showSthAdvisor}
+                        showPlans={showSthPlans}
+                    />
                     <BusinessPlotsLayer
                         visible={showBusinessPlots}
                         filters={businessPlotFilters}
