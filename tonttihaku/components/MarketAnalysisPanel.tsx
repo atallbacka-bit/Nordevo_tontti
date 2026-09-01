@@ -109,6 +109,8 @@ function fmtArea(m2: number): string {
     return `${fmtEur(m2)} m²`;
 }
 
+const fmt1 = (v: number) => v.toFixed(1).replace('.', ',');
+
 const PRODUCT_SHORT: Record<ProductClass, string> = {
     'kt-kompakti': 'KT kompakti',
     'kt-keski': 'KT keskikoko',
@@ -163,6 +165,26 @@ function AnswerRow({ q, basis, children }: { q: string; basis?: React.ReactNode;
         </div>
     );
 }
+
+// One cell of the key-numbers grid: label on top, the number big, source under.
+function StatTile({ label, note, title, action, children }: { label: string; note?: React.ReactNode; title?: string; action?: React.ReactNode; children: React.ReactNode }) {
+    return (
+        <div className="bg-white px-3 py-2 min-w-0" title={title}>
+            <div className="flex items-center justify-between gap-1">
+                <MicroLabel>{label}</MicroLabel>
+                {action}
+            </div>
+            <div className="text-[15px] font-extrabold tabular-nums leading-tight mt-0.5">{children}</div>
+            {note && <div className="text-[9px] text-slate-400 leading-tight mt-0.5 truncate">{note}</div>}
+        </div>
+    );
+}
+
+function Unit({ children }: { children: React.ReactNode }) {
+    return <span className="text-[9.5px] font-bold text-slate-400 ml-0.5">{children}</span>;
+}
+
+const EST_CHIP = <span className="ml-1 text-[8.5px] font-bold text-amber-600 align-middle">arvio</span>;
 
 // Price vs absorption, one dot per project: makes "expensive but selling"
 // (and its opposite) visible at a glance. Y grows downward = slower.
@@ -276,8 +298,16 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
     const [showScoreParts, setShowScoreParts] = useState(false);
     const [copied, setCopied] = useState(false);
     const [unitCount, setUnitCount] = useState(24);
+    // plot-value conversion controls: user-set €/m² override + inline editor,
+    // and whether the ladder shows leasehold rungs converted or as-is
+    const [plotOverride, setPlotOverride] = useState<number | null>(null);
+    const [plotEditing, setPlotEditing] = useState(false);
+    const [plotDraft, setPlotDraft] = useState('');
+    const [ladderMode, setLadderMode] = useState<'oma' | 'raw'>('oma');
 
     useEffect(() => { setMounted(true); }, []);
+    // a new point is a new site — an override for the old one must not leak in
+    useEffect(() => { setPlotOverride(null); setPlotEditing(false); }, [point?.lat, point?.lng]);
     useEffect(() => {
         loadPostalAreas().then(setPostalFC).catch(() => { });
         loadRailStations().then(setRail).catch(() => { });
@@ -339,7 +369,10 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
         const uudet = sale.filter(l => l.newDev || (l.year != null && l.year >= nowYear - 1));
         const uudehkot = sale.filter(l => !uudet.includes(l) && l.year != null && l.year >= 2010);
         const vanhat = sale.filter(l => l.year != null && l.year < 2010);
-        const rentNewish = rent.filter(l => l.year != null && l.year >= 2010);
+        // rent buckets are exclusive: uudet (≤5 v / uudiskohde) → 2010-luku → vanhat
+        const isRentNew = (l: CompListing) => l.newDev || (l.year != null && l.year >= nowYear - 5);
+        const rentUudet = rent.filter(isRentNew);
+        const rent2010s = rent.filter(l => !isRentNew(l) && l.year != null && l.year >= 2010);
         // old-leaning rents: confirmed-newish excluded, unknown-year kept (skews old)
         const rentOldish = rent.filter(l => !(l.year != null && l.year >= 2010));
         return {
@@ -348,9 +381,36 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
             uudehkot: { med: median(uudehkot.map(l => l.eurM2)), n: uudehkot.length, list: uudehkot },
             vanhat: { med: median(vanhat.map(l => l.eurM2)), n: vanhat.length, list: vanhat },
             rentAll: { med: median(rent.map(l => l.eurM2)), n: rent.length },
-            rentNewish: { med: median(rentNewish.map(l => l.eurM2)), n: rentNewish.length },
+            rentUudet: { med: median(rentUudet.map(l => l.eurM2)), n: rentUudet.length },
+            rent2010s: { med: median(rent2010s.map(l => l.eurM2)), n: rent2010s.length },
             rentOld: { med: rentOldish.length >= 3 ? median(rentOldish.map(l => l.eurM2)) : null, n: rentOldish.length },
         };
+    }, [comps, point, radiusKm]);
+
+    // Uudisvuokra: an own number for what a NEW unit rents at. Tiered evidence —
+    // actual new-build rental listings in the radius, then in the whole postcode
+    // set, then 2010s stock as a labeled proxy (est). Old-stock rents are never
+    // extrapolated into this: rent spreads don't follow price spreads.
+    const rentNew = useMemo(() => {
+        if (!comps || !point) return null;
+        const nowYear = new Date().getFullYear();
+        const isNew = (l: CompListing) => l.newDev || (l.year != null && l.year >= nowYear - 5);
+        const isNewish = (l: CompListing) => l.year != null && l.year >= 2010;
+        const inRadius = (l: CompListing) =>
+            l.lat == null || l.lng == null || haversineKm(point.lat, point.lng, l.lat, l.lng) <= radiusKm + 0.6;
+        const tiers: { list: CompListing[]; source: string; est: boolean }[] = [
+            { list: comps.rent.filter(l => inRadius(l) && isNew(l)), source: 'uudisvuokrailmoituksista säteellä', est: false },
+            { list: comps.rent.filter(isNew), source: 'uudisvuokrailmoituksista lähialueella', est: false },
+            { list: comps.rent.filter(l => inRadius(l) && isNewish(l)), source: '2010-luvun kannan vuokrista säteellä', est: true },
+            { list: comps.rent.filter(isNewish), source: '2010-luvun kannan vuokrista lähialueella', est: true },
+        ];
+        for (const t of tiers) {
+            if (t.list.length >= 3) {
+                const med = median(t.list.map(l => l.eurM2));
+                if (med != null) return { med, n: t.list.length, source: t.source, est: t.est };
+            }
+        }
+        return null;
     }, [comps, point, radiusKm]);
 
     const access = useMemo(() => {
@@ -405,6 +465,9 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
             }
         }
     }
+    const plotAutoEstimate = plotEstimate; // data-derived value, kept for the editor's "palauta"
+    // user-set value wins everywhere the estimate is used (ladder, likvidi hinta, preemio, tuotto)
+    if (plotOverride != null) plotEstimate = { value: plotOverride, source: 'oma arvio' };
     // clearing price on an owned-plot basis: real oma when available, else converted vt
     const omaEquivClearing = clearingOma
         ? { value: clearingOma.value, est: false }
@@ -413,7 +476,7 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
             : null;
 
     const yieldOld = compStats?.rentOld.med && compStats?.vanhat.med ? (12 * compStats.rentOld.med) / compStats.vanhat.med : null;
-    const yieldNew = compStats?.rentNewish.med && omaEquivClearing ? (12 * compStats.rentNewish.med) / omaEquivClearing.value : null;
+    const yieldNew = rentNew?.med && omaEquivClearing ? (12 * rentNew.med) / omaEquivClearing.value : null;
     const hasClearing = !!(a.clearingPrice.oma || a.clearingPrice.vuokra);
     const hasStalled = !!(a.stalledPrice.oma || a.stalledPrice.vuokra);
     const whiteSpace = hot != null && hot >= 65 && st.sold12 >= 10 && st.pipelineUnits < Math.max(10, st.sold12 / 2);
@@ -521,75 +584,34 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
         }
         : null;
 
-    // ── The verdict: 3–6 plain sentences that carry the main point.
-    //    New-build evidence leads when we have it; in infill areas the
-    //    resale market (realized sales + listing liquidity) takes over. ──
-    const verdict: VerdictLine[] = [];
+    // ── Huomiot: only the signals the structured display does NOT already
+    //    carry — evidence caveats, warnings, and genuine opportunities. The
+    //    old descriptive verdict prose duplicated the answer rows, tiles and
+    //    ladder, which made the panel read heavy; those lines are gone. ──
+    const signals: VerdictLine[] = [];
     {
-        const mi = st.monthsInventory;
         if (st.projects === 0) {
-            verdict.push({ tone: 'neu', text: 'Säteellä ei ole STH-seurattuja uudiskohteita — analyysi nojaa vanhan kannan kauppaan.' });
+            signals.push({ tone: 'neu', text: 'Ei STH-uudiskohteita säteellä — arvio nojaa vanhan kannan kauppaan.' });
         } else if (sthThin) {
-            verdict.push({ tone: 'neu', text: `Vain ${st.projects} uudiskohde${st.projects > 1 ? 'tta' : ''} säteellä — uudisnäyttö on ohut, vanhan kannan kauppa painaa arviossa.` });
-        } else if (mi == null) {
-            verdict.push({ tone: 'neg', text: `Uudiskauppa on jäässä: ${st.forSale.toFixed(0)} asuntoa myynnissä eikä yhtään kauppaa 12 kuukauteen.` });
-        } else if (mi <= 8) {
-            verdict.push({ tone: 'pos', text: `Kysyntä vetää: ${st.sold12.toFixed(0)} kauppaa 12 kk:ssa ja varasto kiertäisi ${formatMonthsInv(mi)} kuukaudessa.` });
-        } else if (mi <= 18) {
-            verdict.push({ tone: 'neu', text: `Kauppa käy kohtuullisesti: ${st.sold12.toFixed(0)} kauppaa 12 kk:ssa, varastoa ${formatMonthsInv(mi)} kuukaudeksi.` });
-        } else {
-            verdict.push({ tone: 'neg', text: `Tarjontaa on kysyntään nähden paljon: nykyvarasto riittäisi ${formatMonthsInv(mi)} kuukaudeksi.` });
+            signals.push({ tone: 'neu', text: `Vain ${st.projects} uudiskohde${st.projects > 1 ? 'tta' : ''} säteellä — ohut uudisnäyttö, vanhan kannan kauppa painaa arviossa.` });
         }
-
-        // resale market: leads in infill, one supporting line otherwise
-        if (resalePooled && resaleLiq) {
-            if (sthThin) {
-                const tone: Tone = resaleGrade === 'vilkas' || resaleGrade === 'normaali' ? 'pos' : resaleGrade === 'hidas' ? 'neu' : 'neg';
-                verdict.push({
-                    tone,
-                    text: `Vanha kanta ${resaleGrade === 'vilkas' ? 'vaihtaa omistajaa vilkkaasti' : resaleGrade === 'normaali' ? 'käy normaalisti kaupaksi' : resaleGrade === 'hidas' ? 'liikkuu verkkaisesti' : 'ei juuri liiku'}: ${resalePooled.sales12mo} toteutunutta kauppaa 12 kk${resaleLiq.domMedian != null ? `, myynnissä olevat ilmoitukset md ${Math.round(resaleLiq.domMedian)} vrk vanhoja` : ''}.`,
-                });
-            } else if (resaleGrade === 'jaassa' || resaleGrade === 'hidas') {
-                verdict.push({ tone: 'neg', text: `Myös vanha kanta liikkuu hitaasti (${resalePooled.sales12mo} kauppaa 12 kk${resaleLiq.domMedian != null ? `, ilmoitukset md ${Math.round(resaleLiq.domMedian)} vrk vanhoja` : ''}).` });
-            }
-            if (sthThin && resalePooled.ktEurM2 != null) {
-                verdict.push({
-                    tone: 'neu',
-                    text: `Toteutunut vanhan kerrostalokannan hinta n. ${fmtEur(resalePooled.ktEurM2)} €/m²${resalePooled.trendPct != null ? ` (${resalePooled.trendPct >= 0 ? '+' : ''}${resalePooled.trendPct.toFixed(1).replace('.', ',')} % / 12 kk)` : ''}${askVsRealized != null && askVsRealized > 0.12 ? ` — pyynnit ${Math.round(askVsRealized * 100)} % yli toteutuneiden` : ''}.`,
-                });
-            }
+        if (!sthThin && (resaleGrade === 'jaassa' || resaleGrade === 'hidas') && resalePooled && resaleLiq) {
+            signals.push({ tone: 'neg', text: `Myös vanha kanta liikkuu hitaasti (${resalePooled.sales12mo} kauppaa 12 kk${resaleLiq.domMedian != null ? `, ilmoitukset md ${Math.round(resaleLiq.domMedian)} vrk vanhoja` : ''}).` });
         }
-
-        const top = a.products[0];
-        if (top && !sthThin) {
-            verdict.push({
-                tone: 'neu',
-                text: `Parhaiten liikkuu ${top.label.toLowerCase()}${topGap ? `; suurin vaje ${topGap.type}-asunnoista` : ''}.`,
-            });
-        }
-        if (clearingOma) {
-            verdict.push({
-                tone: 'neu',
-                text: `Kauppaava uudishinta omalla tontilla n. ${fmtEur(clearingOma.value)} €/m²${a.stalledPrice.oma ? ` — ${fmtEur(a.stalledPrice.oma.value)} €/m² pyynnit seisovat` : ''}.`,
-            });
-        } else if (a.clearingPrice.vuokra) {
-            const conv = plotEstimate ? a.clearingPrice.vuokra.value + plotEstimate.value : null;
-            verdict.push({
-                tone: 'neu',
-                text: `Kauppaava uudishinta vuokratontilla n. ${fmtEur(a.clearingPrice.vuokra.value)} €/m² (ilman tonttia${conv ? `; omistusvertailuna ≈ ${fmtEur(conv)} €/m²` : ''}).`,
-            });
+        if (sthThin && askVsRealized != null && askVsRealized > 0.12) {
+            signals.push({ tone: 'neg', text: `Pyynnit ${Math.round(askVsRealized * 100)} % yli toteutuneiden — vanhan kannan pyyntitasoon ei kannata ankkuroitua.` });
         }
         // when price does NOT explain absorption, say why the sellers sell
         if (cmp && cmp.reasons.length > 0 && cmp.inverted) {
-            verdict.push({ tone: 'neu', text: cmp.reasons[0] });
+            signals.push({ tone: 'neu', text: cmp.reasons[0] });
         }
         if (premium != null && premium > 0.55) {
-            verdict.push({ tone: 'neg', text: `Uudispreemio vanhaan kantaan +${Math.round(premium * 100)} % (vs. ${premiumVsRealized ? 'toteutuneet kaupat' : 'pyyntihinnat'}) — korkea preemio hidastaa myyntiä.` });
+            signals.push({ tone: 'neg', text: `Uudispreemio vanhaan kantaan +${Math.round(premium * 100)} % (vs. ${premiumVsRealized ? 'toteutuneet kaupat' : 'pyyntihinnat'}) — korkea preemio hidastaa myyntiä.` });
         }
         if (whiteSpace) {
-            verdict.push({ tone: 'pos', text: `Valkoinen alue: kysyntä vetää, mutta tulevaa tarjontaa on vain ${st.pipelineUnits.toFixed(0)} asuntoa.` });
+            signals.push({ tone: 'pos', text: `Valkoinen alue: kysyntä vetää, mutta tulevaa tarjontaa on vain ${st.pipelineUnits.toFixed(0)} asuntoa.` });
         } else if (st.projects > 0 && st.pipelineUnits > Math.max(20, st.sold12 * 1.5)) {
-            verdict.push({ tone: 'neg', text: `Keskeneräisissä kohteissa ${st.pipelineUnits.toFixed(0)} myymätöntä asuntoa — tuleva tarjonta painaa markkinaa.` });
+            signals.push({ tone: 'neg', text: `Keskeneräisissä kohteissa ${st.pipelineUnits.toFixed(0)} myymätöntä asuntoa — tuleva tarjonta painaa markkinaa.` });
         }
     }
 
@@ -600,6 +622,35 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
             setTimeout(() => setCopied(false), 1600);
         }).catch(() => { });
     };
+
+    const savePlot = () => {
+        const v = parseInt(plotDraft, 10);
+        if (isFinite(v) && v > 0) setPlotOverride(v);
+        else setPlotOverride(null);
+        setPlotEditing(false);
+    };
+
+    // the conversion, in one breath — shown on the tile tooltip and in the editor
+    const PLOT_EXPLAIN = 'Vuokratonttikohteen €/m²-hinta ei sisällä tonttia. Omistusvertailussa vuokratonttihintoihin lisätään tontin arvo asuntoneliötä kohden, jotta ne ovat vertailukelpoisia oman tontin hintojen kanssa.';
+
+    // Likvidi hinta tile: one truncating line on the tile, full story on hover
+    const liquidNote = liquidBand
+        ? liquidBand.source === 'movers'
+            ? `myyvät kohteet, oma tontti (${liquidBand.n})`
+            : liquidBand.source === 'movers-converted'
+                ? (omaMoverVals.length > 0
+                    ? `myyvät: ${omaMoverVals.length} oma + ${leaseMoverVals.length} vt + tontti`
+                    : `myyvät vt-kohteet + tontin arvo (${liquidBand.n})`)
+                : 'vanha toteutunut + uudispreemio'
+        : undefined;
+    const liquidTitle = liquidBand
+        ? liquidBand.source === 'movers' ? `Myyvien uudiskohteiden taso omalla tontilla (${nKohdetta(liquidBand.n)})`
+            : liquidBand.source === 'movers-converted'
+                ? (omaMoverVals.length > 0
+                    ? `Myyvät: ${nKohdetta(omaMoverVals.length)} omalla tontilla + ${leaseMoverVals.length} vuokratontilla tontin arvolla${plotEstimate ? ` ${fmtEur(plotEstimate.value)} €/m²` : ''}`
+                    : `Myyvät vuokratonttikohteet + tontin arvo${plotEstimate ? ` ${fmtEur(plotEstimate.value)} €/m²` : ''} (${nKohdetta(liquidBand.n)})`)
+                : `Arvio: toteutunut vanha ${fmtEur(resalePooled?.ktEurM2)} €/m² + uudispreemio ${liquidBand.premiumUsed ? `${Math.round((liquidBand.premiumUsed - 1) * 100)} %` : ''}`
+        : undefined;
 
     // Oikotie reference listings, browsable by age bucket (old stock included)
     const listingDist = (l: CompListing) =>
@@ -625,16 +676,23 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
     if (compStats?.vanhat.med) ladder.push({ label: 'Vanhat', value: compStats.vanhat.med, color: '#94a3b8', hint: 'Oikotie: ennen 2010 valmistuneiden pyyntimediaani' });
     if (compStats?.uudehkot.med) ladder.push({ label: '2010-l.', value: compStats.uudehkot.med, color: '#cbd5e1', hint: 'Oikotie: 2010-luvulla valmistuneiden pyyntimediaani' });
     if (compStats?.uudet.med) ladder.push({ label: 'Uudet pyynti', value: compStats.uudet.med, color: '#3b82f6', hint: 'Oikotie: uusien kohteiden pyyntimediaani (kaikki, ei vain myyvät)' });
+    // leasehold rungs follow the toggle: 'oma' converts them (+ tonttiarvio) so
+    // every rung sits on the same owned-plot axis, 'raw' shows the asking price
+    // as printed (without the land component)
+    const convertLease = !!plotEstimate && ladderMode === 'oma';
     if (clearingOma) ladder.push({ label: 'Kauppaava', value: clearingOma.value, color: '#16a34a', hint: HINT_KAUPPAAVA });
     if (a.clearingPrice.vuokra) {
-        if (plotEstimate) ladder.push({ label: clearingOma ? 'Kaupp. vt*' : 'Kauppaava*', value: a.clearingPrice.vuokra.value + plotEstimate.value, color: '#0d9488', hint: `${HINT_KAUPPAAVA} (vuokratontti + tonttiarvio)` });
-        else if (!clearingOma) ladder.push({ label: 'Kauppaava (vt)', value: a.clearingPrice.vuokra.value, color: '#16a34a', hint: `${HINT_KAUPPAAVA} (vuokratontti, ilman tonttia)` });
+        if (convertLease) ladder.push({ label: clearingOma ? 'Kaupp. vt*' : 'Kauppaava*', value: a.clearingPrice.vuokra.value + plotEstimate!.value, color: '#0d9488', hint: `${HINT_KAUPPAAVA} (vuokratontti + tonttiarvio)` });
+        else if (ladderMode === 'raw' || !clearingOma) ladder.push({ label: clearingOma ? 'Kaupp. (vt)' : 'Kauppaava (vt)', value: a.clearingPrice.vuokra.value, color: clearingOma ? '#0d9488' : '#16a34a', hint: `${HINT_KAUPPAAVA} (vuokratontti, ilman tonttia)` });
     }
     if (a.stalledPrice.oma) ladder.push({ label: 'Seisova', value: a.stalledPrice.oma.value, color: '#dc2626', hint: HINT_SEISOVA });
     else if (a.stalledPrice.vuokra) {
-        if (plotEstimate) ladder.push({ label: 'Seisova*', value: a.stalledPrice.vuokra.value + plotEstimate.value, color: '#dc2626', hint: `${HINT_SEISOVA} (vuokratontti + tonttiarvio)` });
+        if (convertLease) ladder.push({ label: 'Seisova*', value: a.stalledPrice.vuokra.value + plotEstimate!.value, color: '#dc2626', hint: `${HINT_SEISOVA} (vuokratontti + tonttiarvio)` });
         else ladder.push({ label: 'Seisova (vt)', value: a.stalledPrice.vuokra.value, color: '#dc2626', hint: `${HINT_SEISOVA} (vuokratontti, ilman tonttia)` });
     }
+    // toggle is only offered when both views exist: a plot value to convert
+    // with AND at least one leasehold price on the ladder
+    const ladderCanToggle = !!plotEstimate && !!(a.clearingPrice.vuokra || (!a.stalledPrice.oma && a.stalledPrice.vuokra));
     const ladderConverted = ladder.some(p => p.label.includes('*'));
     // unconverted leasehold rungs (no plot estimate available) break the
     // owned-plot comparison — the axis label and footnote must say so
@@ -741,12 +799,12 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
                     </div>
                 )}
 
-                {/* The answer, one view: three explicit questions answered → verdict →
-                    price ladder → sell-out estimate. Detail sections below reveal how
-                    the numbers are derived. */}
+                {/* The answer, one view: verdict row → the four key numbers big →
+                    what to build → signals → price ladder → sell-out estimate.
+                    Detail sections below reveal how the numbers are derived. */}
                 <div className="px-4 py-3.5 border-b border-slate-100 space-y-3">
-                    {/* The three questions this panel exists to answer */}
-                    <div className="rounded-xl border border-slate-200 divide-y divide-slate-100 bg-white shadow-sm">
+                    {/* Verdict + key numbers */}
+                    <div className="rounded-xl border border-slate-200 divide-y divide-slate-100 bg-white shadow-sm overflow-hidden">
                         <AnswerRow q="Myykö alue?" basis={areaVerdict?.basis}>
                             {areaVerdict
                                 ? <span style={{ color: areaVerdict.color }}>
@@ -757,23 +815,94 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
                                     ? <span className="text-slate-300 animate-pulse">Haetaan…</span>
                                     : <span className="text-slate-300">Ei dataa</span>}
                         </AnswerRow>
-                        <AnswerRow
-                            q="Likvidi hinta"
-                            basis={liquidBand
-                                ? liquidBand.source === 'movers' ? `Myyvien uudiskohteiden taso omalla tontilla (${nKohdetta(liquidBand.n)})`
-                                    : liquidBand.source === 'movers-converted'
-                                        ? (omaMoverVals.length > 0
-                                            ? `Myyvät: ${nKohdetta(omaMoverVals.length)} omalla tontilla + ${leaseMoverVals.length} vuokratontilla tonttiarviolla${plotEstimate ? ` ${fmtEur(plotEstimate.value)} €/m²` : ''}`
-                                            : `Myyvät vuokratonttikohteet + tonttiarvio${plotEstimate ? ` ${fmtEur(plotEstimate.value)} €/m²` : ''} (${nKohdetta(liquidBand.n)})`)
-                                        : `Arvio: toteutunut vanha ${fmtEur(resalePooled?.ktEurM2)} €/m² + uudispreemio ${liquidBand.premiumUsed ? `${Math.round((liquidBand.premiumUsed - 1) * 100)} %` : ''}`
-                                : undefined}
-                        >
-                            {liquidBand
-                                ? <span className="tabular-nums">{fmtEur(liquidBand.lo)}–{fmtEur(liquidBand.hi)} €/m²{liquidBand.source === 'resale-premium' && <span className="ml-1 text-[9px] font-bold text-amber-600 align-middle">arvio</span>}</span>
-                                : marketLoading
-                                    ? <span className="text-slate-300 animate-pulse">Haetaan…</span>
-                                    : <span className="text-slate-300">Ei riittävää näyttöä</span>}
-                        </AnswerRow>
+                        {/* The four numbers that matter, presented big. Everything
+                            else about how they arise lives in the sections below. */}
+                        <div className="grid grid-cols-2 gap-px bg-slate-100">
+                            <StatTile
+                                label="Likvidi hinta"
+                                title={liquidTitle}
+                                note={liquidBand ? liquidNote : marketLoading ? 'haetaan…' : 'ei riittävää näyttöä'}
+                            >
+                                {liquidBand
+                                    ? <>{fmtEur(liquidBand.lo)}–{fmtEur(liquidBand.hi)}<Unit>€/m²</Unit>{liquidBand.source === 'resale-premium' && EST_CHIP}</>
+                                    : marketLoading
+                                        ? <span className="text-slate-300 animate-pulse">…</span>
+                                        : <span className="text-slate-300">–</span>}
+                            </StatTile>
+                            <StatTile
+                                label="Uudisvuokra"
+                                title={rentNew ? `Vuokrapyyntien mediaani ${rentNew.n} ilmoituksesta — ${rentNew.source}` : undefined}
+                                note={rentNew ? `${rentNew.n} kpl · ${rentNew.source}` : compsLoading ? 'haetaan…' : 'ei vuokrailmoituksia'}
+                            >
+                                {rentNew
+                                    ? <>{fmt1(rentNew.med)}<Unit>€/m²/kk</Unit>{rentNew.est && EST_CHIP}</>
+                                    : compsLoading
+                                        ? <span className="text-slate-300 animate-pulse">…</span>
+                                        : <span className="text-slate-300">–</span>}
+                            </StatTile>
+                            <StatTile
+                                label="Bruttotuotto uudis"
+                                title="12 × uudisvuokra / kauppaava uudishinta (omistusvertailu)"
+                                note={yieldNew != null ? 'uudisvuokra / kauppaava hinta' : 'vaatii vuokran ja hinnan'}
+                            >
+                                {yieldNew != null
+                                    ? <span className={yieldNew >= 0.045 ? 'text-green-700' : undefined}>{fmt1(yieldNew * 100)}<Unit>%</Unit>{(rentNew?.est || omaEquivClearing?.est) && EST_CHIP}</span>
+                                    : <span className="text-slate-300">–</span>}
+                            </StatTile>
+                            <StatTile
+                                label="Tontin arvo"
+                                title={PLOT_EXPLAIN}
+                                note={plotOverride != null ? 'oma arvio · palauta kynästä' : plotEstimate ? plotEstimate.source : 'ei arviota — aseta kynästä'}
+                                action={
+                                    <button
+                                        onClick={() => {
+                                            if (!plotEditing) setPlotDraft(plotEstimate ? String(Math.round(plotEstimate.value)) : '');
+                                            setPlotEditing(!plotEditing);
+                                        }}
+                                        className={`p-0.5 rounded transition-colors ${plotEditing ? 'text-slate-700 bg-slate-200' : 'text-slate-300 hover:text-slate-600'}`}
+                                        title="Muokkaa tontin arvoa"
+                                    >
+                                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                        </svg>
+                                    </button>
+                                }
+                            >
+                                {plotEstimate
+                                    ? <>{plotOverride == null && '≈ '}{fmtEur(plotEstimate.value)}<Unit>€/m²</Unit></>
+                                    : <span className="text-slate-300">–</span>}
+                            </StatTile>
+                        </div>
+
+                        {/* Plot-value editor: opens from the pencil, explains the
+                            vuokratontti→oma conversion in one breath */}
+                        {plotEditing && (
+                            <div className="px-3 py-2 bg-slate-50/60">
+                                <div className="flex items-center gap-1.5">
+                                    <input
+                                        type="number" min={0} max={5000} step={50} value={plotDraft} autoFocus
+                                        onChange={e => setPlotDraft(e.target.value)}
+                                        onKeyDown={e => { if (e.key === 'Enter') savePlot(); if (e.key === 'Escape') setPlotEditing(false); }}
+                                        placeholder="esim. 900"
+                                        className="w-20 px-1.5 py-1 text-[12px] font-bold text-right border border-slate-200 rounded bg-white focus:outline-none focus:border-slate-400 tabular-nums"
+                                    />
+                                    <span className="text-[10px] text-slate-500 font-medium">€/asunto-m²</span>
+                                    <button onClick={savePlot} className="ml-auto px-2.5 py-1 text-[10px] font-bold rounded bg-slate-900 text-white hover:bg-slate-700">OK</button>
+                                    {plotOverride != null && plotAutoEstimate && (
+                                        <button
+                                            onClick={() => { setPlotOverride(null); setPlotEditing(false); }}
+                                            className="px-2 py-1 text-[10px] font-bold rounded border border-slate-200 text-slate-600 hover:border-slate-300"
+                                            title={`Palauta datasta laskettu arvio ${fmtEur(plotAutoEstimate.value)} €/m² (${plotAutoEstimate.source})`}
+                                        >
+                                            Palauta
+                                        </button>
+                                    )}
+                                </div>
+                                <div className="text-[9px] text-slate-400 mt-1.5 leading-relaxed">
+                                    {PLOT_EXPLAIN} Arvo vaikuttaa likvidiin hintaan, hintaportaisiin (*), preemioon ja tuottoon.
+                                </div>
+                            </div>
+                        )}
                         <AnswerRow
                             q="Mitä rakentaa"
                             basis={topProduct && !sthThin
@@ -794,30 +923,44 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
                         {resalePooled && <span>{resalePooled.sales12mo} toteutunutta kauppaa 12 kk (Tilastokeskus)</span>}
                     </div>
 
-                    {/* Why, in words */}
-                    <div className="space-y-1.5">
-                        {verdict.map((v, i) => (
-                            <div key={i} className="flex items-start gap-1.5">
-                                <span className="w-1.5 h-1.5 rounded-full flex-none mt-[5px]" style={{ background: TONE_COLOR[v.tone] }} />
-                                <span className="text-[11px] leading-snug text-slate-700">{v.text}</span>
-                            </div>
-                        ))}
-                    </div>
+                    {/* Signals only — caveats, warnings, opportunities. The numbers
+                        themselves already live in the answer card above. */}
+                    {signals.length > 0 && (
+                        <div className="space-y-1.5">
+                            {signals.map((v, i) => (
+                                <div key={i} className="flex items-start gap-1.5">
+                                    <span className="w-1.5 h-1.5 rounded-full flex-none mt-[5px]" style={{ background: TONE_COLOR[v.tone] }} />
+                                    <span className="text-[11px] leading-snug text-slate-700">{v.text}</span>
+                                </div>
+                            ))}
+                        </div>
+                    )}
 
                     {/* Price ladder */}
                     {ladder.length >= 2 && (
                         <div>
-                            <MicroLabel>{ladderUnconverted ? 'Hintaportaat (€/m²)' : 'Hintaportaat (€/m², omistusvertailu)'}</MicroLabel>
+                            <div className="flex items-center justify-between gap-2">
+                                <MicroLabel>{convertLease && !ladderUnconverted ? 'Hintaportaat (€/m², omistusvertailu)' : 'Hintaportaat (€/m²)'}</MicroLabel>
+                                {ladderCanToggle && (
+                                    <div className="flex rounded-full border border-slate-200 overflow-hidden flex-none" title="Näytetäänkö vuokratonttikohteiden hinnat tontin arvolla korotettuina (omistusvertailu) vai sellaisinaan">
+                                        {([['oma', 'omistusvertailu'], ['raw', 'ilman tonttia']] as const).map(([id, label]) => (
+                                            <button
+                                                key={id}
+                                                onClick={() => setLadderMode(id)}
+                                                className={`px-1.5 py-0.5 text-[8.5px] font-bold transition-colors ${ladderMode === id ? 'bg-slate-900 text-white' : 'bg-white text-slate-500 hover:text-slate-700'}`}
+                                            >
+                                                {label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                             <PriceLadder points={ladder} />
                             <div className="text-[9px] text-slate-400 -mt-1 leading-relaxed">
-                                Kauppaava = myyvien uudiskohteiden pyyntimediaani (varasto kiertää ≤ 12 kk) ·
-                                Seisova = yli 24 kk varasto tai ei kauppoja. Eri kohteita — hyvä tuote voi
-                                pyytää enemmän ja silti myydä.
-                                {ladderHasRealized && <> Toteutunut = vanhojen KT-asuntojen toteutuneet kaupat (Tilastokeskus).</>}
-                                {ladderConverted && plotEstimate && (
-                                    <> * vuokratontti + tonttiarvio {fmtEur(plotEstimate.value)} €/m² ({plotEstimate.source}).</>
-                                )}
-                                {ladderUnconverted && <> (vt) = vuokratontti ilman tontin osuutta — ei suoraan vertailukelpoinen muihin portaisiin.</>}
+                                Kauppaava = myyvien uudiskohteiden pyyntimediaani · Seisova = yli 24 kk varasto tai ei kauppoja.
+                                {ladderHasRealized && <> Toteutunut = vanhojen KT-asuntojen toteutuneet kaupat.</>}
+                                {ladderConverted && plotEstimate && <> * sisältää tontin arvon {fmtEur(plotEstimate.value)} €/m² ({plotEstimate.source}).</>}
+                                {ladderUnconverted && <> (vt) = vuokratontti ilman tontin osuutta.</>}
                             </div>
                         </div>
                     )}
@@ -1095,9 +1238,14 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
                             </div>
                         )}
                         {!hasClearing && !hasStalled && <div className="text-[11.5px] text-slate-400">Ei riittävästi uudiskohteita hinta-arvioon.</div>}
+                        {(hasClearing || hasStalled) && (
+                            <div className="text-[9px] text-slate-400">
+                                Kauppaava ja seisova ovat eri kohteita — hyvä tuote voi pyytää enemmän ja silti myydä.
+                            </div>
+                        )}
                         {plotEstimate && (a.clearingPrice.vuokra || a.stalledPrice.vuokra) && (
                             <div className="text-[10px] text-slate-500 bg-slate-50 rounded px-1.5 py-1">
-                                Tonttiarvio <b>{fmtEur(plotEstimate.value)} €/m²</b> ({plotEstimate.source})
+                                Tontin arvo <b>{fmtEur(plotEstimate.value)} €/m²</b> ({plotEstimate.source})
                                 {a.clearingPrice.vuokra && <> → kauppaava vt omistusvertailuna ≈ <b>{fmtEur(a.clearingPrice.vuokra.value + plotEstimate.value)} €/m²</b></>}
                             </div>
                         )}
@@ -1130,12 +1278,32 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
                                 {premium > 0.55 && ' — korkea preemio hidastaa myyntiä'}
                             </div>
                         )}
-                        {compStats && (
-                            <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-[11px] text-slate-600 mt-1">
-                                <span>Vuokrat: <b>{compStats.rentAll.med ? `${compStats.rentAll.med.toFixed(1).replace('.', ',')} €/m²/kk` : '–'}</b> ({compStats.rentAll.n} kpl)</span>
-                                {yieldOld != null && <span>Bruttotuotto vanhat: <b>{(yieldOld * 100).toFixed(1).replace('.', ',')} %</b></span>}
-                                {yieldNew != null && <span>uudet: <b>{(yieldNew * 100).toFixed(1).replace('.', ',')} %</b></span>}
-                            </div>
+                        {compStats && compStats.rentAll.n > 0 && (
+                            <>
+                                <div className="border-t border-slate-100 my-1.5" />
+                                <MicroLabel>Vuokrataso · pyynnit (€/m²/kk, mediaani · {compStats.rentAll.n} ilmoitusta)</MicroLabel>
+                                <div className="grid grid-cols-3 gap-1.5 mt-1">
+                                    {[
+                                        { label: 'Uudet', d: compStats.rentUudet },
+                                        { label: '2010-luku', d: compStats.rent2010s },
+                                        { label: 'Vanhat', d: compStats.rentOld },
+                                    ].map(b => (
+                                        <div key={b.label} className="bg-slate-50 rounded-lg px-1.5 py-1.5 text-center">
+                                            <div className="text-[12px] font-bold tabular-nums">{b.d.med ? fmt1(b.d.med) : '–'}</div>
+                                            <MicroLabel>{b.label} ({b.d.n})</MicroLabel>
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="text-[9px] text-slate-400 mt-0.5">
+                                    Uudet = valmistunut {new Date().getFullYear() - 5}– tai uudiskohde. Uudisvuokra-lukuun käytetään näitä; jos säteellä on liian vähän, taso haetaan koko postinumerojoukosta tai 2010-luvun kannasta (merkitty arvioksi).
+                                </div>
+                                {(yieldOld != null || yieldNew != null) && (
+                                    <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-[11px] text-slate-600 mt-1">
+                                        {yieldNew != null && <span>Bruttotuotto uudet: <b className={yieldNew >= 0.045 ? 'text-green-700' : undefined}>{fmt1(yieldNew * 100)} %</b></span>}
+                                        {yieldOld != null && <span>vanhat: <b>{fmt1(yieldOld * 100)} %</b></span>}
+                                    </div>
+                                )}
+                            </>
                         )}
                         {/* Size-band pricing: where the market pays the new-build premium */}
                         {bandStats && bandStats.some(b => b.oldMed != null || b.newMed != null) && (
