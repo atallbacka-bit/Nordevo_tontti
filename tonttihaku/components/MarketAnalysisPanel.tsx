@@ -17,27 +17,14 @@ import {
     gradeResale, LIQUIDITY_LABEL, LIQUIDITY_COLOR,
 } from '@/lib/resaleAnalysis';
 import { POSTAL_INFO } from '@/lib/postalInfo';
+import { CompListing, CompsResponse, AgeBucket, COMPS_TAG, isSaleNew, isRentNew, rentBucket } from '@/lib/comps';
+import CompsMapLayer from './CompsMapLayer';
 import { useT, useLang } from '@/lib/i18n';
 
 // One-stop market analysis for a clicked point (or postal area) on the map.
 // Layout is verdict-first: the header carries identity (area, kiinteistötunnus),
 // then a written area snippet, then an auto-generated plain-language verdict
 // next to the hotness score. Detail sections follow, most collapsed.
-
-interface CompListing {
-    id: number; url: string; address: string; district: string;
-    year: number | null; buildingType: number | null; newDev: boolean;
-    rooms: number | null; roomConfig: string;
-    sizeM2: number; price: number; eurM2: number;
-    lat: number | null; lng: number | null; postcode: string;
-    daysOnMarket: number | null; bumped: boolean; priceCut: boolean;
-    visits: number | null; visitsWeekly: number | null;
-}
-
-interface CompsResponse {
-    postcodes: string[]; sale: CompListing[]; rent: CompListing[];
-    saleFound?: number; rentFound?: number; fetchedAt: string; error?: string;
-}
 
 interface Props {
     open: boolean;
@@ -111,6 +98,14 @@ function fmtArea(m2: number): string {
 }
 
 const fmt1 = (v: number) => v.toFixed(1).replace('.', ',');
+
+// rent age buckets offered for the map overlay — the same buckets as the
+// Vuokrataso grid, so a chip count equals the grid count
+const MAP_RENT_CHIPS: { id: AgeBucket; label: string; hint: string }[] = [
+    { id: 'uudet', label: 'Uudisvuokrat', hint: 'Oikotie: uudiskohteiden ja enintään 5 v vanhojen talojen vuokrapyynnit (€/m²/kk)' },
+    { id: 'uudehkot', label: '2010-l. vuokrat', hint: 'Oikotie: 2010-luvulla valmistuneiden talojen vuokrapyynnit (€/m²/kk)' },
+    { id: 'vanhat', label: 'Vanhat vuokrat', hint: 'Oikotie: ennen 2010 valmistuneiden (tai vuosi tuntematon) talojen vuokrapyynnit (€/m²/kk)' },
+];
 
 const PRODUCT_SHORT: Record<ProductClass, string> = {
     'kt-kompakti': 'KT kompakti',
@@ -312,6 +307,11 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
     const [plotEditing, setPlotEditing] = useState(false);
     const [plotDraft, setPlotDraft] = useState('');
     const [ladderMode, setLadderMode] = useState<'oma' | 'raw'>('oma');
+    // map overlay: which Oikotie listings are drawn as pins around the point.
+    // New-build rents are the point of the overlay, so they start on; the
+    // new-build sale listings complete the picture next to the STH pins.
+    const [mapRentBuckets, setMapRentBuckets] = useState<AgeBucket[]>(['uudet']);
+    const [mapSale, setMapSale] = useState(true);
 
     useEffect(() => { setMounted(true); }, []);
     // a new point is a new site — an override for the old one must not leak in
@@ -374,15 +374,15 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
         const sale = comps.sale.filter(inRadius);
         const rent = comps.rent.filter(inRadius);
         const nowYear = new Date().getFullYear();
-        const uudet = sale.filter(l => l.newDev || (l.year != null && l.year >= nowYear - 1));
+        const uudet = sale.filter(l => isSaleNew(l, nowYear));
         const uudehkot = sale.filter(l => !uudet.includes(l) && l.year != null && l.year >= 2010);
         const vanhat = sale.filter(l => l.year != null && l.year < 2010);
-        // rent buckets are exclusive: uudet (≤5 v / uudiskohde) → 2010-luku → vanhat
-        const isRentNew = (l: CompListing) => l.newDev || (l.year != null && l.year >= nowYear - 5);
-        const rentUudet = rent.filter(isRentNew);
-        const rent2010s = rent.filter(l => !isRentNew(l) && l.year != null && l.year >= 2010);
-        // old-leaning rents: confirmed-newish excluded, unknown-year kept (skews old)
-        const rentOldish = rent.filter(l => !(l.year != null && l.year >= 2010));
+        // rent buckets are exclusive (lib/comps): uudet (≤5 v / uudiskohde) → 2010-luku
+        // → vanhat (unknown year counts as old). The map overlay buckets with the
+        // same function, so a pin always belongs to the bucket its median is in.
+        const rentUudet = rent.filter(l => rentBucket(l, nowYear) === 'uudet');
+        const rent2010s = rent.filter(l => rentBucket(l, nowYear) === 'uudehkot');
+        const rentOldish = rent.filter(l => rentBucket(l, nowYear) === 'vanhat');
         return {
             sale, rent,
             uudet: { med: median(uudet.map(l => l.eurM2)), n: uudet.length, list: uudet },
@@ -402,7 +402,7 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
     const rentNew = useMemo(() => {
         if (!comps || !point) return null;
         const nowYear = new Date().getFullYear();
-        const isNew = (l: CompListing) => l.newDev || (l.year != null && l.year >= nowYear - 5);
+        const isNew = (l: CompListing) => isRentNew(l, nowYear);
         const isNewish = (l: CompListing) => l.year != null && l.year >= 2010;
         const inRadius = (l: CompListing) =>
             l.lat == null || l.lng == null || haversineKm(point.lat, point.lng, l.lat, l.lng) <= radiusKm + 0.6;
@@ -419,6 +419,19 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
             }
         }
         return null;
+    }, [comps, point, radiusKm]);
+
+    // listings the map overlay draws inside the radius, for the header chips
+    const mapCounts = useMemo(() => {
+        if (!comps || !point) return null;
+        const nowYear = new Date().getFullYear();
+        const near = (l: CompListing) => l.lat != null && l.lng != null
+            && haversineKm(point.lat, point.lng, l.lat, l.lng) <= radiusKm + 0.6;
+        const rentN: Record<AgeBucket, number> = { uudet: 0, uudehkot: 0, vanhat: 0 };
+        for (const l of comps.rent) if (near(l)) rentN[rentBucket(l, nowYear)]++;
+        const saleN = comps.sale.filter(l => near(l) && isSaleNew(l, nowYear)).length;
+        const any = comps.rent.some(l => l.lat != null) || comps.sale.some(l => l.lat != null && isSaleNew(l, nowYear));
+        return { rent: rentN, sale: saleN, any };
     }, [comps, point, radiusKm]);
 
     const access = useMemo(() => {
@@ -797,6 +810,44 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
                         </button>
                     ))}
                 </div>
+
+                {/* Map overlay: Oikotie listings around the point as pins, so the
+                    rent and asking-price medians have a spatial picture behind
+                    them. Counts = listings inside the radius. */}
+                {mapCounts?.any && (
+                    <div className="mt-2">
+                        <div className="flex flex-wrap items-center gap-1">
+                            <span className="text-[10px] font-bold uppercase tracking-[0.06em] text-slate-400 mr-1">{t('Kartalla')}</span>
+                            {MAP_RENT_CHIPS.map(c => {
+                                const on = mapRentBuckets.includes(c.id);
+                                return (
+                                    <button
+                                        key={c.id}
+                                        onClick={() => setMapRentBuckets(on ? mapRentBuckets.filter(x => x !== c.id) : [...mapRentBuckets, c.id])}
+                                        title={t(c.hint)}
+                                        className="px-1.5 py-0.5 rounded-[3px] text-[10px] font-semibold border border-l-4 transition-all tabular-nums"
+                                        style={on
+                                            ? { background: '#fff', borderColor: COMPS_TAG.rentText, borderLeftColor: COMPS_TAG.rentSpine[c.id], color: COMPS_TAG.rentText }
+                                            : { background: '#fff', borderColor: '#e2e8f0', borderLeftColor: '#cbd5e1', color: '#64748b' }}
+                                    >
+                                        {t(c.label)} <span style={{ color: on ? 'rgba(15,118,110,0.65)' : '#94a3b8' }}>{mapCounts.rent[c.id]}</span>
+                                    </button>
+                                );
+                            })}
+                            <button
+                                onClick={() => setMapSale(!mapSale)}
+                                title={t('Oikotie: uudiskohteiden ja viime vuonna valmistuneiden myynti-ilmoitukset (pyynti €/m²)')}
+                                className="px-1.5 py-0.5 rounded-[3px] text-[10px] font-semibold border border-l-4 transition-all tabular-nums"
+                                style={mapSale
+                                    ? { background: '#fff', borderColor: COMPS_TAG.saleText, borderLeftColor: COMPS_TAG.saleSpine, color: COMPS_TAG.saleText }
+                                    : { background: '#fff', borderColor: '#e2e8f0', borderLeftColor: '#cbd5e1', color: '#64748b' }}
+                            >
+                                {t('Uudet myynnissä')} <span style={{ color: mapSale ? 'rgba(67,56,202,0.65)' : '#94a3b8' }}>{mapCounts.sale}</span>
+                            </button>
+                        </div>
+                        <div className="text-[9px] text-slate-400 mt-1">{t('Lappu = Oikotie-ilmoitukset rakennuksittain (mediaani) · pyöreä pilleri = STH-kohde · haalea = säteen ulkopuolella · klikkaa lappua')}</div>
+                    </div>
+                )}
             </div>
 
             <div className="flex-1 overflow-y-auto">
@@ -1655,5 +1706,21 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
         </div>
     );
 
-    return createPortal(panel, document.body);
+    // the pins live in the Leaflet tree (this component is rendered inside the
+    // MapContainer); the panel itself is portalled over the map
+    return (
+        <>
+            {comps && (
+                <CompsMapLayer
+                    point={point}
+                    radiusKm={radiusKm}
+                    rent={comps.rent}
+                    sale={comps.sale}
+                    rentBuckets={mapRentBuckets}
+                    showSale={mapSale}
+                />
+            )}
+            {createPortal(panel, document.body)}
+        </>
+    );
 }

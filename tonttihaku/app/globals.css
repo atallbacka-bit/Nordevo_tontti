@@ -252,3 +252,81 @@ body {
     -webkit-backdrop-filter: blur(8px);
     border: 1px solid rgba(255, 255, 255, 0.5);
 }
+
+/* Oikotie listing tags (market-analysis map overlay): one tag per building.
+   A deliberately different family from the STH pills (rounded pastel + status
+   dot): square-cornered white tag, thick colour spine on the left, coloured
+   text, no dot. Teal = asking rent €/m²/kk (spine shade = age bucket),
+   indigo = new-build asking €/m². Faded = outside the analysis radius. */
+.cmp-tag {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: #fff;
+  border: 1.5px solid currentColor;
+  border-left-width: 5px;
+  border-radius: 3px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.22);
+  padding: 2px 6px 2px 5px;
+  font-size: 10.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  line-height: 1.2;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;
+}
+.cmp-rent {
+  color: #0f766e;
+}
+.cmp-sale {
+  color: #4338ca;
+}
+.cmp-tag.cmp-out {
+  opacity: 0.5;
+}
+.cmp-n {
+  font-size: 9px;
+  font-weight: 800;
+  color: #fff;
+  border-radius: 3px;
+  padding: 0 4px;
+  line-height: 1.4;
+}
+/* cluster: same tag family, slate spine, one coloured row per kind */
+.cmp-cluster {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #fff;
+  color: #0f172a;
+  border: 1.5px solid #475569;
+  border-left-width: 5px;
+  border-radius: 3px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.22);
+  padding: 2px 6px;
+  font-family: 'Inter', system-ui, sans-serif;
+  white-space: nowrap;
+  transition: transform 0.12s ease;
+}
+.cmp-cluster-count {
+  font-size: 12px;
+  font-weight: 800;
+}
+.cmp-cluster-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.cmp-cluster-row {
+  font-size: 9.5px;
+  font-weight: 700;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+}
+.custom-plot-icon:hover .cmp-tag,
+.custom-plot-icon:hover .cmp-cluster {
+  transform: scale(1.06);
+  box-shadow: 0 3px 10px rgba(15, 23, 42, 0.3);
+  opacity: 1;
+}
