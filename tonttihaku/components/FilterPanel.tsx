@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { ZONING_TYPES, STATUS_OPTIONS, MATERIAL_OPTIONS, getStatusAccent } from '@/lib/constants';
 import { PlotData, PlotFilters, SalesFilters, BusinessPlotFilters } from '@/types';
+import { useT, LanguageToggle } from '@/lib/i18n';
 
 // iOS-style switch, visual only — pair with a hidden checkbox input
 function Switch({ on }: { on: boolean }) {
@@ -83,6 +84,7 @@ export default function FilterPanel({
     plotsData = [],
     onPlotSelect
 }: FilterPanelProps) {
+    const t = useT();
     const [activeTab, setActiveTab] = useState<'search' | 'analysis'>('search');
     const [filters, setFilters] = useState<FilterState>({
         laskvar_ak_min: '', laskvar_ak_max: '',
@@ -292,7 +294,7 @@ export default function FilterPanel({
 
     const handleExportVisiblePlots = async () => {
         if (visiblePlots.length === 0) {
-            alert('Ei näkyviä tontteja vietäväksi.');
+            alert(t('Ei näkyviä tontteja vietäväksi.'));
             return;
         }
         try {
@@ -320,7 +322,7 @@ export default function FilterPanel({
             URL.revokeObjectURL(url);
         } catch (err) {
             console.error('Export error:', err);
-            alert('Excel-vienti epäonnistui.');
+            alert(t('Excel-vienti epäonnistui.'));
         }
     };
 
@@ -348,7 +350,7 @@ export default function FilterPanel({
                     <button
                         onClick={onToggle}
                         className="p-1.5 bg-slate-100 rounded-full text-slate-500 hover:text-slate-800 hover:bg-slate-200 transition-colors shadow-sm border border-slate-200"
-                        title="Piilota valikko"
+                        title={t('Piilota valikko')}
                     >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
@@ -358,8 +360,14 @@ export default function FilterPanel({
 
                 {/* Header + tabs */}
                 <div className="px-5 pt-5 pb-4 border-b border-slate-100">
-                    <h1 className="text-lg font-bold text-slate-900 tracking-tight leading-tight">Tonttihaku</h1>
-                    <p className="text-xs text-slate-500 mb-3.5">Pääkaupunkiseudun tonttivaranto</p>
+                    <div className="flex items-start justify-between gap-3 mr-10">
+                        <div>
+                            <h1 className="text-lg font-bold text-slate-900 tracking-tight leading-tight">{t('Tonttihaku')}</h1>
+                            <p className="text-xs text-slate-500">{t('Pääkaupunkiseudun tonttivaranto')}</p>
+                        </div>
+                        <LanguageToggle className="mt-0.5 shrink-0" />
+                    </div>
+                    <div className="mb-3.5" />
                     <div className="flex bg-slate-100 rounded-lg p-1 mr-10">
                         <button
                             onClick={() => setActiveTab('search')}
@@ -368,7 +376,7 @@ export default function FilterPanel({
                                 : 'text-slate-500 hover:text-slate-700'
                                 }`}
                         >
-                            Haku
+                            {t('Haku')}
                         </button>
                         <button
                             onClick={() => setActiveTab('analysis')}
@@ -377,7 +385,7 @@ export default function FilterPanel({
                                 : 'text-slate-500 hover:text-slate-700'
                                 }`}
                         >
-                            Analyysi
+                            {t('Analyysi')}
                         </button>
                     </div>
                 </div>
@@ -390,7 +398,7 @@ export default function FilterPanel({
                             {/* TUNNETUT TONTIT SECTION */}
                             <div>
                                 <label className="flex items-center justify-between cursor-pointer group">
-                                    <h3 className="text-sm font-semibold text-slate-900">Tunnetut tontit</h3>
+                                    <h3 className="text-sm font-semibold text-slate-900">{t('Tunnetut tontit')}</h3>
                                     <input
                                         type="checkbox"
                                         checked={layerStates.plots}
@@ -410,7 +418,7 @@ export default function FilterPanel({
                                                 </svg>
                                                 <input
                                                     type="text"
-                                                    placeholder="Etsi tontteja..."
+                                                    placeholder={t('Etsi tontteja...')}
                                                     value={searchQuery}
                                                     onChange={(e) => {
                                                         setSearchQuery(e.target.value);
@@ -464,7 +472,7 @@ export default function FilterPanel({
                                         </div>
                                         {/* Status Filter */}
                                         <div>
-                                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-[0.07em] mb-2">Tila</label>
+                                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-[0.07em] mb-2">{t('Tila')}</label>
                                             <div className="flex flex-wrap gap-1.5">
                                                 {STATUS_OPTIONS.filter(opt => opt.value !== '').map(opt => {
                                                     const isSelected = plotStatus.includes(opt.value);
@@ -501,7 +509,7 @@ export default function FilterPanel({
                                                                 }}
                                                                 className="hidden"
                                                             />
-                                                            {opt.label}
+                                                            {t(opt.label)}
                                                         </label>
                                                     )
                                                 })}
@@ -510,7 +518,7 @@ export default function FilterPanel({
 
                                         {/* Kunta Filter */}
                                         <div className="relative">
-                                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-[0.07em] mb-2">Kunta</label>
+                                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-[0.07em] mb-2">{t('Kunta')}</label>
                                             <button
                                                 type="button"
                                                 onClick={() => setKuntaDropdownOpen(!kuntaDropdownOpen)}
@@ -532,7 +540,7 @@ export default function FilterPanel({
                                                         onClick={toggleAllKunnat}
                                                         className="w-full text-left px-3 py-2 text-xs font-semibold text-blue-600 hover:bg-blue-50 border-b border-slate-100"
                                                     >
-                                                        {availableKunnat.every(k => plotKunnat.includes(k)) ? 'Poista kaikki' : 'Valitse kaikki'}
+                                                        {availableKunnat.every(k => plotKunnat.includes(k)) ? t('Poista kaikki') : t('Valitse kaikki')}
                                                     </button>
                                                     {availableKunnat.map(k => (
                                                         <label
@@ -554,7 +562,7 @@ export default function FilterPanel({
 
                                         {/* Zoning Type Filter */}
                                         <div>
-                                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-[0.07em] mb-2">Kaavatyypit</label>
+                                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-[0.07em] mb-2">{t('Kaavatyypit')}</label>
                                             <div className="flex flex-wrap gap-1.5">
                                                 {ZONING_TYPES.map(z => {
                                                     const isSelected = plotZoningTypes.includes(z.code);
@@ -563,7 +571,7 @@ export default function FilterPanel({
                                                             key={z.code}
                                                             type="button"
                                                             onClick={() => togglePlotZoning(z.code)}
-                                                            title={z.label}
+                                                            title={t(z.label)}
                                                             className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-full transition-all border ${isSelected
                                                                 ? ''
                                                                 : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:text-slate-700'
@@ -582,7 +590,7 @@ export default function FilterPanel({
 
                                         {/* Priority Filter */}
                                         <div>
-                                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-[0.07em] mb-2">Prioriteetti</label>
+                                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-[0.07em] mb-2">{t('Prioriteetti')}</label>
                                             <div className="flex flex-wrap gap-1.5">
                                                 {[1, 2, 3, 0].map(p => (
                                                     <button
@@ -602,7 +610,7 @@ export default function FilterPanel({
 
                                         {/* Material Filter (Puu/Betoni) */}
                                         <div>
-                                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-[0.07em] mb-2">Materiaali</label>
+                                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-[0.07em] mb-2">{t('Materiaali')}</label>
                                             <div className="flex flex-wrap gap-1.5">
                                                 {[...MATERIAL_OPTIONS, { value: '', label: '-' }].map(m => (
                                                     <button
@@ -616,7 +624,7 @@ export default function FilterPanel({
                                                             : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
                                                             }`}
                                                     >
-                                                        {m.label}
+                                                        {t(m.label)}
                                                     </button>
                                                 ))}
                                             </div>
@@ -624,7 +632,7 @@ export default function FilterPanel({
 
                                         {/* Building Right Filter */}
                                         <div>
-                                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-[0.07em] mb-2">Rakennusoikeus (k-m²)</label>
+                                            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-[0.07em] mb-2">{t('Rakennusoikeus (k-m²)')}</label>
                                             <div className="flex gap-3">
                                                 <div className="relative flex-1">
                                                     <input
@@ -667,7 +675,7 @@ export default function FilterPanel({
                                                     onChange={(e) => toggleLayer('add_plot_mode', e)}
                                                     className="hidden"
                                                 />
-                                                <span className={`text-[13px] font-medium transition-colors ${layerStates.add_plot_mode ? 'text-green-700' : 'text-slate-600 group-hover:text-slate-800'}`}>Lisäystila — klikkaa karttaa</span>
+                                                <span className={`text-[13px] font-medium transition-colors ${layerStates.add_plot_mode ? 'text-green-700' : 'text-slate-600 group-hover:text-slate-800'}`}>{t('Lisäystila — klikkaa karttaa')}</span>
                                             </label>
 
                                             {/* Add Past Plot Mode Sub-Toggle */}
@@ -682,7 +690,7 @@ export default function FilterPanel({
                                                         onChange={(e) => toggleLayer('add_past_plot_mode', e)}
                                                         className="hidden"
                                                     />
-                                                    <span className={`text-xs font-medium transition-colors ${layerStates.add_past_plot_mode ? 'text-blue-700' : 'text-slate-500'}`}>Menneen tontin lisäys</span>
+                                                    <span className={`text-xs font-medium transition-colors ${layerStates.add_past_plot_mode ? 'text-blue-700' : 'text-slate-500'}`}>{t('Menneen tontin lisäys')}</span>
                                                 </label>
                                             )}
 
@@ -694,7 +702,7 @@ export default function FilterPanel({
                                                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                                     <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 4v12m0 0l-4-4m4 4l4-4" />
                                                 </svg>
-                                                <span>Lataa Excel (.xlsx)</span>
+                                                <span>{t('Lataa Excel (.xlsx)')}</span>
                                             </button>
                                         </div>
                                     </div>
@@ -703,8 +711,8 @@ export default function FilterPanel({
 
                             {/* WMS HAKU */}
                             <div className="border-t border-slate-100 pt-5">
-                                <h3 className="text-sm font-semibold text-slate-900 mb-1">Etsi rakennusoikeuksia</h3>
-                                <p className="text-xs text-slate-500 mb-4">Korttelitason varantohaku (WMS)</p>
+                                <h3 className="text-sm font-semibold text-slate-900 mb-1">{t('Etsi rakennusoikeuksia')}</h3>
+                                <p className="text-xs text-slate-500 mb-4">{t('Korttelitason varantohaku (WMS)')}</p>
 
                                 <div className="space-y-4">
                                     {[
@@ -715,11 +723,11 @@ export default function FilterPanel({
                                         { id: 'laskvar_y', label: 'Julkinen rakentaminen (y)' },
                                     ].map((field) => (
                                         <div key={field.id} className="group">
-                                            <label className="block text-xs font-medium text-slate-500 mb-1.5 group-hover:text-slate-700 transition-colors">{field.label}</label>
+                                            <label className="block text-xs font-medium text-slate-500 mb-1.5 group-hover:text-slate-700 transition-colors">{t(field.label)}</label>
                                             <div className="grid grid-cols-2 gap-3">
-                                                <input type="number" id={`${field.id}_min`} placeholder="Min m²" onChange={handleInputChange}
+                                                <input type="number" id={`${field.id}_min`} placeholder={t('Min m²')} onChange={handleInputChange}
                                                     className="block w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all" />
-                                                <input type="number" id={`${field.id}_max`} placeholder="Max m²" onChange={handleInputChange}
+                                                <input type="number" id={`${field.id}_max`} placeholder={t('Max m²')} onChange={handleInputChange}
                                                     className="block w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all" />
                                             </div>
                                         </div>
@@ -727,12 +735,12 @@ export default function FilterPanel({
 
                                     <button onClick={handleSearch}
                                         className="w-full mt-4 flex justify-center py-2.5 px-4 rounded-lg text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all active:scale-[0.99]">
-                                        Hae kohteet
+                                        {t('Hae kohteet')}
                                     </button>
 
                                     <div className="pt-6 mt-2">
                                         <label className="flex items-center justify-between text-xs font-medium text-slate-500 mb-2">
-                                            <span>WMS-tason läpinäkyvyys</span>
+                                            <span>{t('WMS-tason läpinäkyvyys')}</span>
                                             <span className="text-slate-900 bg-slate-100 px-2 py-0.5 rounded text-[10px]">{opacity}%</span>
                                         </label>
                                         <input type="range" min="0" max="100" value={opacity} onChange={handleOpacityChange}
@@ -746,7 +754,7 @@ export default function FilterPanel({
                     {activeTab === 'analysis' && (
                         <div>
                             <p className="text-xs text-slate-500 mb-3">
-                                Tutki tonttien ominaisuuksia lisäämällä analyysitasoja kartalle.
+                                {t('Tutki tonttien ominaisuuksia lisäämällä analyysitasoja kartalle.')}
                             </p>
 
                             {/* Layer Toggle Component */}
@@ -770,7 +778,7 @@ export default function FilterPanel({
                                         <h3 className={`text-[13px] font-semibold ${
                                             // @ts-ignore
                                             layerStates[layer.id] ? 'text-blue-700' : 'text-slate-800'
-                                            }`}>{layer.label}</h3>
+                                            }`}>{t(layer.label)}</h3>
 
                                         <Switch on={
                                             // @ts-ignore
@@ -788,7 +796,7 @@ export default function FilterPanel({
                                             className="hidden"
                                         />
                                     </label>
-                                    <p className="text-xs text-slate-500 mt-0.5 relative z-10 pointer-events-none">{layer.desc}</p>
+                                    <p className="text-xs text-slate-500 mt-0.5 relative z-10 pointer-events-none">{t(layer.desc)}</p>
 
                                     {/* STH Portal Containers — filled by SthMarketLayer */}
                                     {layer.id === 'sth_projects' && layerStates.sth_projects && (
@@ -809,7 +817,7 @@ export default function FilterPanel({
                                         <div className="mt-3 pt-3 border-t border-slate-100 space-y-3 animate-in fade-in duration-300 relative z-30">
                                             {/* Usage Filter (Multi-select) */}
                                             <div>
-                                                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-[0.07em] mb-2">Käyttötarkoitus</label>
+                                                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-[0.07em] mb-2">{t('Käyttötarkoitus')}</label>
                                                 <div className="flex flex-wrap gap-1.5 pr-1 max-h-32 overflow-y-auto custom-scrollbar">
                                                     {businessUsageOptions.map(opt => (
                                                         <button
@@ -830,30 +838,30 @@ export default function FilterPanel({
                                                             {opt}
                                                         </button>
                                                     ))}
-                                                    {businessUsageOptions.length === 0 && <span className="text-xs text-gray-400 italic">Ladataan...</span>}
+                                                    {businessUsageOptions.length === 0 && <span className="text-xs text-gray-400 italic">{t('Ladataan...')}</span>}
                                                 </div>
                                                 {businessPlotFilters.usage && businessPlotFilters.usage.length > 0 && (
                                                     <button
                                                         onClick={() => onBusinessPlotFiltersChange?.({ ...businessPlotFilters, usage: [] })}
                                                         className="text-[10px] text-blue-600 hover:underline mt-1.5"
                                                     >
-                                                        Tyhjennä valinnat
+                                                        {t('Tyhjennä valinnat')}
                                                     </button>
                                                 )}
                                             </div>
 
                                             {/* Build Right Filter */}
                                             <div>
-                                                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-[0.07em] mb-1">Rakennusoikeus (k-m²)</label>
+                                                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-[0.07em] mb-1">{t('Rakennusoikeus (k-m²)')}</label>
                                                 <div className="flex gap-2">
                                                     <input
-                                                        type="number" placeholder="Min"
+                                                        type="number" placeholder={t('Min')}
                                                         value={businessPlotFilters.minBuildRight}
                                                         onChange={(e) => onBusinessPlotFiltersChange?.({ ...businessPlotFilters, minBuildRight: e.target.value })}
                                                         className="w-full border rounded px-2 py-1.5 text-xs bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                                                     />
                                                     <input
-                                                        type="number" placeholder="Max"
+                                                        type="number" placeholder={t('Max')}
                                                         value={businessPlotFilters.maxBuildRight}
                                                         onChange={(e) => onBusinessPlotFiltersChange?.({ ...businessPlotFilters, maxBuildRight: e.target.value })}
                                                         className="w-full border rounded px-2 py-1.5 text-xs bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
@@ -862,16 +870,16 @@ export default function FilterPanel({
                                             </div>
                                             {/* Area Filter */}
                                             <div>
-                                                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-[0.07em] mb-1">Pinta-ala (m²)</label>
+                                                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-[0.07em] mb-1">{t('Pinta-ala (m²)')}</label>
                                                 <div className="flex gap-2">
                                                     <input
-                                                        type="number" placeholder="Min"
+                                                        type="number" placeholder={t('Min')}
                                                         value={businessPlotFilters.minArea}
                                                         onChange={(e) => onBusinessPlotFiltersChange?.({ ...businessPlotFilters, minArea: e.target.value })}
                                                         className="w-full border rounded px-2 py-1.5 text-xs bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                                                     />
                                                     <input
-                                                        type="number" placeholder="Max"
+                                                        type="number" placeholder={t('Max')}
                                                         value={businessPlotFilters.maxArea}
                                                         onChange={(e) => onBusinessPlotFiltersChange?.({ ...businessPlotFilters, maxArea: e.target.value })}
                                                         className="w-full border rounded px-2 py-1.5 text-xs bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
@@ -911,11 +919,11 @@ export default function FilterPanel({
                                                 ))}
                                             </div>
                                             <div className="flex gap-2">
-                                                <input type="number" placeholder="Min m²" value={salesBRMin} onChange={(e) => {
+                                                <input type="number" placeholder={t('Min m²')} value={salesBRMin} onChange={(e) => {
                                                     setSalesBRMin(e.target.value);
                                                     updateSalesFilters(salesZoningTypes, e.target.value, salesBRMax);
                                                 }} className="w-1/2 px-2 py-1.5 text-xs border border-slate-200 rounded bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
-                                                <input type="number" placeholder="Max m²" value={salesBRMax} onChange={(e) => {
+                                                <input type="number" placeholder={t('Max m²')} value={salesBRMax} onChange={(e) => {
                                                     setSalesBRMax(e.target.value);
                                                     updateSalesFilters(salesZoningTypes, salesBRMin, e.target.value);
                                                 }} className="w-1/2 px-2 py-1.5 text-xs border border-slate-200 rounded bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20" />
@@ -926,7 +934,7 @@ export default function FilterPanel({
                                                 <span className={`w-4 h-4 rounded border flex items-center justify-center mr-2 ${layerStates.edit_mode ? 'bg-red-500 border-red-500' : 'bg-white border-red-300'}`}>
                                                     {layerStates.edit_mode && <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
                                                 </span>
-                                                <span className="text-xs font-bold text-red-700">Muokkaustila</span>
+                                                <span className="text-xs font-bold text-red-700">{t('Muokkaustila')}</span>
                                             </label>
                                         </div>
                                     )}

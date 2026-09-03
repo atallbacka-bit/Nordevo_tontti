@@ -5,6 +5,7 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 import AuthProvider from "@/components/AuthProvider";
+import { LanguageProvider } from "@/lib/i18n";
 
 export const metadata: Metadata = {
     title: "Pääkaupunkiseutu Tonttihaku",
@@ -19,7 +20,9 @@ export default function RootLayout({
     return (
         <html lang="fi">
             <body className={inter.className}>
-                <AuthProvider>{children}</AuthProvider>
+                <LanguageProvider>
+                    <AuthProvider>{children}</AuthProvider>
+                </LanguageProvider>
             </body>
         </html>
     );

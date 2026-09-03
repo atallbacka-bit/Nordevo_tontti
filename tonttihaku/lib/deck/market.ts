@@ -5,7 +5,7 @@
 
 import {
     SthDataset, PointAnalysis, analyzePoint, computeAreaStats, compareMoversStalled,
-    formatMonthsInv, fmtEur, haversineKm,
+    formatMonthsInv, fmtEur, haversineKm, reasonText,
 } from '@/lib/sthAnalysis';
 import {
     poolResale, resaleLiquidity, bandLiquidity, liquidPriceBand, gradeResale,
@@ -270,7 +270,7 @@ export function computeDeckMarket(
             });
         }
         if (cmp && cmp.reasons.length > 0 && cmp.inverted) {
-            verdict.push({ tone: 'neu', text: cmp.reasons[0] });
+            verdict.push({ tone: 'neu', text: reasonText(cmp.reasons[0]) });
         }
         if (premium != null && premium > 0.55) {
             verdict.push({ tone: 'neg', text: `Uudispreemio vanhaan kantaan +${Math.round(premium * 100)} % (vs. ${premiumVsRealized ? 'toteutuneet kaupat' : 'pyyntihinnat'}) — korkea preemio hidastaa myyntiä.` });
@@ -297,6 +297,6 @@ export function computeDeckMarket(
         resalePooled, resaleLiq, resaleGrade, compStats,
         plotEstimate, omaEquivClearing, premium, premiumVsRealized, liquidBand,
         areaVerdict, topGap, topProduct, infillBuild, sellout, unitCount,
-        verdict, cmpReasons: cmp?.reasons ?? [], ladder,
+        verdict, cmpReasons: (cmp?.reasons ?? []).map(reasonText), ladder,
     };
 }

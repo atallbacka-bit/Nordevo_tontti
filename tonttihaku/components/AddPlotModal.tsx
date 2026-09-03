@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { ZONING_TYPES, getZoningColor, STATUS_OPTIONS, KUNTA_OPTIONS } from '@/lib/constants';
 import { ZoningEntry, PlotData } from '@/types';
 import { useAuth } from '@/components/AuthProvider';
+import { useT } from '@/lib/i18n';
 
 
 
@@ -23,6 +24,7 @@ export default function AddPlotModal({
     mode = 'add',
     existingPlot = null
 }: AddPlotModalProps) {
+    const t = useT();
     const { username } = useAuth();
     const [formData, setFormData] = useState({
         name: '',
@@ -250,13 +252,13 @@ export default function AddPlotModal({
                     type="button"
                     onClick={onClose}
                     className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 text-2xl font-bold leading-none"
-                    aria-label="Sulje"
+                    aria-label={t('Sulje')}
                 >
                     ×
                 </button>
 
                 <h2 className="text-xl font-bold mb-4 pr-8">
-                    {isEditMode ? 'Muokkaa tonttia' : 'Lisää tunnettu tontti'}
+                    {isEditMode ? t('Muokkaa tonttia') : t('Lisää tunnettu tontti')}
                 </h2>
 
                 {/* Location info */}
@@ -266,7 +268,7 @@ export default function AddPlotModal({
                     ) : location ? (
                         <span>Sijainti: {location.lat.toFixed(5)}, {location.lng.toFixed(5)}</span>
                     ) : (
-                        <span>Sijaintia ei määritetty</span>
+                        <span>{t('Sijaintia ei määritetty')}</span>
                     )}
                 </div>
 
@@ -275,15 +277,15 @@ export default function AddPlotModal({
                     <div className="grid grid-cols-2 gap-3">
                         {/* Name field */}
                         <div className="col-span-2">
-                            <label className="block text-xs font-semibold text-gray-700 uppercase">Nimi *</label>
+                            <label className="block text-xs font-semibold text-gray-700 uppercase">{t('Nimi *')}</label>
                             <input name="name" type="text" required value={formData.name} onChange={handleChange}
-                                className="w-full border rounded p-2 text-sm" placeholder="Esim. Tontti A" />
+                                className="w-full border rounded p-2 text-sm" placeholder={t('Esim. Tontti A')} />
                         </div>
 
                         {/* Added by / Updated by field */}
                         <div className="col-span-2 bg-yellow-50 p-3 rounded-lg border border-yellow-200">
                             <label className="block text-xs font-semibold text-gray-700 uppercase">
-                                {isEditMode ? 'Muokkaajan nimi *' : 'Lisääjän nimi *'}
+                                {isEditMode ? t('Muokkaajan nimi *') : t('Lisääjän nimi *')}
                             </label>
                             <input
                                 name={isEditMode ? 'updatedBy' : 'createdBy'}
@@ -292,19 +294,19 @@ export default function AddPlotModal({
                                 value={isEditMode ? formData.updatedBy : formData.createdBy}
                                 onChange={handleChange}
                                 className="w-full border rounded p-2 text-sm"
-                                placeholder="Oma nimesi"
+                                placeholder={t('Oma nimesi')}
                             />
                             <p className="text-xs text-gray-500 mt-1">
-                                Nimi tallentuu automaattisesti aikaleiman kanssa.
+                                {t('Nimi tallentuu automaattisesti aikaleiman kanssa.')}
                             </p>
                         </div>
 
                         {/* Zoning Types Section */}
                         <div className="col-span-2 bg-blue-50 p-3 rounded-lg border border-blue-200">
                             <div className="flex justify-between items-center mb-2">
-                                <label className="block text-xs font-semibold text-gray-700 uppercase">Kaavatyypit ja rakennusoikeus</label>
+                                <label className="block text-xs font-semibold text-gray-700 uppercase">{t('Kaavatyypit ja rakennusoikeus')}</label>
                                 <button type="button" onClick={addZoning} className="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700">
-                                    + Lisää tyyppi
+                                    {t('+ Lisää tyyppi')}
                                 </button>
                             </div>
                             <div className="space-y-2">
@@ -317,7 +319,7 @@ export default function AddPlotModal({
                                             style={{ borderLeftColor: getZoningColor(zoning.type), borderLeftWidth: '4px' }}
                                         >
                                             {ZONING_TYPES.map(z => (
-                                                <option key={z.code} value={z.code}>{z.code} - {z.label}</option>
+                                                <option key={z.code} value={z.code}>{z.code} - {t(z.label)}</option>
                                             ))}
                                         </select>
                                         <input
@@ -344,7 +346,7 @@ export default function AddPlotModal({
                         {/* Price estimate - essential */}
                         <div className="col-span-2 grid grid-cols-2 gap-3">
                             <div>
-                                <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Kem hinta-arvio *</label>
+                                <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">{t('Kem hinta-arvio *')}</label>
                                 <div className="relative">
                                     <input name="pricePerRight" type="number" required value={formData.pricePerRight} onChange={handleChange}
                                         className="w-full border rounded p-2 text-sm pr-12" placeholder="0" />
@@ -352,7 +354,7 @@ export default function AddPlotModal({
                                 </div>
                             </div>
                             <div>
-                                <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Laskettu kokonaisarvio</label>
+                                <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">{t('Laskettu kokonaisarvio')}</label>
                                 <div className="w-full border rounded p-2 text-sm bg-gray-100 text-gray-600">
                                     {(totalBuildingRight * (parseInt(formData.pricePerRight) || 0)).toLocaleString()} €
                                 </div>
@@ -362,62 +364,62 @@ export default function AddPlotModal({
                         {/* Priority + Material fields - essential */}
                         <div className="col-span-2 grid grid-cols-2 gap-3">
                             <div>
-                                <label className="block text-xs font-semibold text-gray-700 uppercase">Prioriteetti</label>
+                                <label className="block text-xs font-semibold text-gray-700 uppercase">{t('Prioriteetti')}</label>
                                 <select name="priority" value={formData.priority} onChange={handleChange} className="w-full border rounded p-2 text-sm bg-white">
-                                    <option value={0}>- Ei luokiteltu -</option>
-                                    <option value={1}>1 - Korkea prioriteetti</option>
-                                    <option value={2}>2 - Keskikorkea prioriteetti</option>
-                                    <option value={3}>3 - Matala prioriteetti</option>
+                                    <option value={0}>{t('- Ei luokiteltu -')}</option>
+                                    <option value={1}>{t('1 - Korkea prioriteetti')}</option>
+                                    <option value={2}>{t('2 - Keskikorkea prioriteetti')}</option>
+                                    <option value={3}>{t('3 - Matala prioriteetti')}</option>
                                 </select>
-                                <p className="text-xs text-gray-500 mt-1">1 = korkea, 3 = matala</p>
+                                <p className="text-xs text-gray-500 mt-1">{t('1 = korkea, 3 = matala')}</p>
                             </div>
                             <div>
-                                <label className="block text-xs font-semibold text-gray-700 uppercase">Materiaali</label>
+                                <label className="block text-xs font-semibold text-gray-700 uppercase">{t('Materiaali')}</label>
                                 <select name="material" value={formData.material} onChange={handleChange} className="w-full border rounded p-2 text-sm bg-white">
-                                    <option value="">- Ei tiedossa -</option>
-                                    <option value="Puu">Puu</option>
-                                    <option value="Betoni">Betoni</option>
+                                    <option value="">{t('- Ei tiedossa -')}</option>
+                                    <option value="Puu">{t('Puu')}</option>
+                                    <option value="Betoni">{t('Betoni')}</option>
                                 </select>
-                                <p className="text-xs text-gray-500 mt-1">Puurakentamisen potentiaali</p>
+                                <p className="text-xs text-gray-500 mt-1">{t('Puurakentamisen potentiaali')}</p>
                             </div>
                         </div>
 
                         {/* Description - essential */}
                         <div className="col-span-2">
-                            <label className="block text-xs font-semibold text-gray-700 uppercase">Kuvaus</label>
-                            <textarea name="desc" rows={2} value={formData.desc} onChange={handleChange} className="w-full border rounded p-2 text-sm" placeholder="Lisätietoja..." />
+                            <label className="block text-xs font-semibold text-gray-700 uppercase">{t('Kuvaus')}</label>
+                            <textarea name="desc" rows={2} value={formData.desc} onChange={handleChange} className="w-full border rounded p-2 text-sm" placeholder={t('Lisätietoja...')} />
                         </div>
                     </div>
 
                     {/* ADDITIONAL FIELDS - Always visible */}
                     <div className="grid grid-cols-2 gap-3 pt-2 border-t mt-2">
                         <div>
-                            <label className="block text-xs font-semibold text-gray-700 uppercase">Myyjä</label>
-                            <input name="seller" type="text" value={formData.seller} onChange={handleChange} className="w-full border rounded p-2 text-sm" placeholder="Esim. Helsingin Kaupunki" />
+                            <label className="block text-xs font-semibold text-gray-700 uppercase">{t('Myyjä')}</label>
+                            <input name="seller" type="text" value={formData.seller} onChange={handleChange} className="w-full border rounded p-2 text-sm" placeholder={t('Esim. Helsingin Kaupunki')} />
                         </div>
                         <div>
-                            <label className="block text-xs font-semibold text-gray-700 uppercase">Pinta-ala (m²)</label>
+                            <label className="block text-xs font-semibold text-gray-700 uppercase">{t('Pinta-ala (m²)')}</label>
                             <input name="area" type="number" value={formData.area} onChange={handleChange} className="w-full border rounded p-2 text-sm" placeholder="1200" />
                         </div>
 
                         <div>
-                            <label className="block text-xs font-semibold text-gray-700 uppercase">Tila</label>
+                            <label className="block text-xs font-semibold text-gray-700 uppercase">{t('Tila')}</label>
                             <select name="status" value={formData.status} onChange={handleChange} className="w-full border rounded p-2 text-sm">
                                 {availableStatusOptions.map(opt => (
-                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                    <option key={opt.value} value={opt.value}>{t(opt.label)}</option>
                                 ))}
                             </select>
                         </div>
                         <div>
-                            <label className="block text-xs font-semibold text-gray-700 uppercase">Osoite</label>
-                            <input name="address" type="text" value={formData.address} onChange={handleChange} className="w-full border rounded p-2 text-sm" placeholder="Katuosoite" />
+                            <label className="block text-xs font-semibold text-gray-700 uppercase">{t('Osoite')}</label>
+                            <input name="address" type="text" value={formData.address} onChange={handleChange} className="w-full border rounded p-2 text-sm" placeholder={t('Katuosoite')} />
                         </div>
                         <div>
-                            <label className="block text-xs font-semibold text-gray-700 uppercase">Kiinteistötunnus</label>
-                            <input name="kiinteistotunnus" type="text" value={formData.kiinteistotunnus} onChange={handleChange} className="w-full border rounded p-2 text-sm" placeholder="Esim. 091-001-0001-0001" />
+                            <label className="block text-xs font-semibold text-gray-700 uppercase">{t('Kiinteistötunnus')}</label>
+                            <input name="kiinteistotunnus" type="text" value={formData.kiinteistotunnus} onChange={handleChange} className="w-full border rounded p-2 text-sm" placeholder={t('Esim. 091-001-0001-0001')} />
                         </div>
                         <div>
-                            <label className="block text-xs font-semibold text-gray-700 uppercase">Kunta</label>
+                            <label className="block text-xs font-semibold text-gray-700 uppercase">{t('Kunta')}</label>
                             <input
                                 name="kunta"
                                 type="text"
@@ -425,7 +427,7 @@ export default function AddPlotModal({
                                 value={formData.kunta}
                                 onChange={handleChange}
                                 className="w-full border rounded p-2 text-sm"
-                                placeholder="Esim. Helsinki"
+                                placeholder={t('Esim. Helsinki')}
                             />
                             <datalist id="kunta-suggestions">
                                 {KUNTA_OPTIONS.map(opt => (
@@ -437,7 +439,7 @@ export default function AddPlotModal({
                         {/* Deadline field - only shown when status is Kilpailussa */}
                         {formData.status === 'Kilpailussa' && (
                             <div className="col-span-2 bg-orange-50 p-3 rounded-lg border border-orange-200">
-                                <label className="block text-xs font-semibold text-orange-700 uppercase">Kilpailun deadline *</label>
+                                <label className="block text-xs font-semibold text-orange-700 uppercase">{t('Kilpailun deadline *')}</label>
                                 <input
                                     name="deadline"
                                     type="date"
@@ -452,13 +454,13 @@ export default function AddPlotModal({
                         {/* Contact Persons Section */}
                         <div className="col-span-2 pt-2 border-t mt-2">
                             <div className="flex justify-between items-center mb-2">
-                                <h3 className="text-sm font-bold text-gray-800">Yhteystiedot</h3>
+                                <h3 className="text-sm font-bold text-gray-800">{t('Yhteystiedot')}</h3>
                                 <button
                                     type="button"
                                     onClick={() => setContactPersons([...contactPersons, { id: Date.now().toString(), name: '', phone: '', email: '' }])}
                                     className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded border border-blue-200 hover:bg-blue-100"
                                 >
-                                    + Lisää henkilö
+                                    {t('+ Lisää henkilö')}
                                 </button>
                             </div>
 
@@ -472,7 +474,7 @@ export default function AddPlotModal({
                                                     value={person.name}
                                                     onChange={(e) => updateContactPerson(idx, 'name', e.target.value)}
                                                     className="w-full border rounded p-1.5 text-xs font-semibold"
-                                                    placeholder="Yhteyshenkilö *"
+                                                    placeholder={t('Yhteyshenkilö *')}
                                                 />
                                             </div>
                                             <div>
@@ -481,7 +483,7 @@ export default function AddPlotModal({
                                                     value={person.phone}
                                                     onChange={(e) => updateContactPerson(idx, 'phone', e.target.value)}
                                                     className="w-full border rounded p-1.5 text-xs"
-                                                    placeholder="Puhelin"
+                                                    placeholder={t('Puhelin')}
                                                 />
                                             </div>
                                             <div>
@@ -490,7 +492,7 @@ export default function AddPlotModal({
                                                     value={person.email}
                                                     onChange={(e) => updateContactPerson(idx, 'email', e.target.value)}
                                                     className="w-full border rounded p-1.5 text-xs"
-                                                    placeholder="Sähköposti"
+                                                    placeholder={t('Sähköposti')}
                                                 />
                                             </div>
                                         </div>
@@ -520,14 +522,14 @@ export default function AddPlotModal({
                                         className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                                     />
                                     <label htmlFor="hasContacted" className="text-sm font-bold text-gray-800 select-none cursor-pointer">
-                                        Onko jo kontaktoitu?
+                                        {t('Onko jo kontaktoitu?')}
                                     </label>
                                 </div>
 
                                 {hasContacted && (
                                     <div className="bg-green-50 p-3 rounded-lg border border-green-200 grid grid-cols-2 gap-3">
                                         <div className="col-span-2">
-                                            <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Kenen kanssa?</label>
+                                            <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">{t('Kenen kanssa?')}</label>
                                             {contactPersons.length > 0 && contactPersons[0].name ? (
                                                 <select
                                                     value={contactLog.personId || contactPersons[0].id} // Default to first
@@ -539,11 +541,11 @@ export default function AddPlotModal({
                                                     ))}
                                                 </select>
                                             ) : (
-                                                <p className="text-xs text-red-500 italic">Lisää ensin yhteyshenkilö ylle.</p>
+                                                <p className="text-xs text-red-500 italic">{t('Lisää ensin yhteyshenkilö ylle.')}</p>
                                             )}
                                         </div>
                                         <div>
-                                            <label className="block text-xs font-semibold text-gray-700 uppercase">Päivämäärä *</label>
+                                            <label className="block text-xs font-semibold text-gray-700 uppercase">{t('Päivämäärä *')}</label>
                                             <input
                                                 type="date"
                                                 value={contactLog.date}
@@ -554,13 +556,13 @@ export default function AddPlotModal({
                                         </div>
                                         {/* Agent field removed as it uses the Creator name */}
                                         <div className="col-span-2">
-                                            <label className="block text-xs font-semibold text-gray-700 uppercase">Kommentti *</label>
+                                            <label className="block text-xs font-semibold text-gray-700 uppercase">{t('Kommentti *')}</label>
                                             <textarea
                                                 rows={2}
                                                 value={contactLog.desc}
                                                 onChange={(e) => setContactLog({ ...contactLog, desc: e.target.value })}
                                                 className="w-full border rounded p-2 text-sm"
-                                                placeholder="Mitä sovittiin..."
+                                                placeholder={t('Mitä sovittiin...')}
                                                 required
                                             />
                                         </div>
@@ -572,10 +574,10 @@ export default function AddPlotModal({
                         {/* SOLD - Mennyt fields */}
                         {formData.status === 'Mennyt' && (
                             <div className="col-span-2 bg-gray-100 p-3 rounded-lg border border-gray-300">
-                                <h3 className="text-sm font-bold text-gray-800 mb-2">Myyntitiedot</h3>
+                                <h3 className="text-sm font-bold text-gray-800 mb-2">{t('Myyntitiedot')}</h3>
                                 <div className="grid grid-cols-2 gap-3">
                                     <div className="col-span-2">
-                                        <label className="block text-xs font-semibold text-gray-700 uppercase">Ostaja *</label>
+                                        <label className="block text-xs font-semibold text-gray-700 uppercase">{t('Ostaja *')}</label>
                                         <input
                                             name="buyer"
                                             type="text"
@@ -583,11 +585,11 @@ export default function AddPlotModal({
                                             value={formData.buyer}
                                             onChange={handleChange}
                                             className="w-full border rounded p-2 text-sm"
-                                            placeholder="Ostajan nimi / Yritys"
+                                            placeholder={t('Ostajan nimi / Yritys')}
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-semibold text-gray-700 uppercase">Kauppahinta (€) *</label>
+                                        <label className="block text-xs font-semibold text-gray-700 uppercase">{t('Kauppahinta (€) *')}</label>
                                         <input
                                             name="finalPrice"
                                             type="number"
@@ -599,7 +601,7 @@ export default function AddPlotModal({
                                         />
                                     </div>
                                     <div>
-                                        <label className="block text-xs font-semibold text-gray-700 uppercase">Kauppapäivä *</label>
+                                        <label className="block text-xs font-semibold text-gray-700 uppercase">{t('Kauppapäivä *')}</label>
                                         <input
                                             name="soldDate"
                                             type="date"
@@ -610,7 +612,7 @@ export default function AddPlotModal({
                                         />
                                     </div>
                                     <div className="col-span-2 text-xs text-gray-500 italic">
-                                        Tämä lisää tontin myös "Myydyt tontit" -listaan.
+                                        {t('Tämä lisää tontin myös "Myydyt tontit" -listaan.')}
                                     </div>
                                 </div>
                             </div>
@@ -618,9 +620,9 @@ export default function AddPlotModal({
                     </div>
 
                     <div className="flex justify-end space-x-3 pt-4 border-t">
-                        <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50">Peruuta</button>
+                        <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50">{t('Peruuta')}</button>
                         <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700">
-                            {isEditMode ? 'Päivitä' : 'Tallenna'}
+                            {isEditMode ? t('Päivitä') : t('Tallenna')}
                         </button>
                     </div>
                 </form>

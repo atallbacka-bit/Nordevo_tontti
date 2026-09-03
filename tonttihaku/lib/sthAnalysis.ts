@@ -598,6 +598,14 @@ export interface GroupProfile {
     medUnits: number | null;
 }
 
+/** A comparison finding: Finnish source text plus values for its {placeholders}. */
+export interface Reason { fi: string; vars?: Record<string, string | number>; }
+
+/** Render a Reason as plain Finnish — for outputs that are always Finnish (e.g. the pptx deck). */
+export function reasonText(r: Reason): string {
+    return r.vars ? r.fi.replace(/\{(\w+)\}/g, (m, k) => (k in r.vars! ? String(r.vars![k]) : m)) : r.fi;
+}
+
 export interface MoverStalledCompare {
     movers: SthProject[];
     stalled: SthProject[];
@@ -612,7 +620,7 @@ export interface MoverStalledCompare {
     finishedUnsoldUnits: number;
     finishedStalledCount: number;
     /** ready-made Finnish explanation lines, most significant first */
-    reasons: string[];
+    reasons: Reason[];
 }
 
 function profile(list: SthProject[]): GroupProfile {
@@ -656,15 +664,15 @@ export function compareMoversStalled(list: SthProject[]): MoverStalledCompare | 
     // (empirical audit 8/2026): builder identity is the strongest single
     // predictor, then product class + project scale, supply concentration and
     // stage; absolute €/m² alone predicts almost nothing.
-    const reasons: string[] = [];
+    const reasons: Reason[] = [];
     const enough = movers.length >= 2 && stalled.length >= 2;
 
     // 1. price direction — name it either way so the reader isn't left guessing
     const gap = gapOwn ?? gapLease;
     if (inverted) {
-        reasons.push(`Myyvät kohteet ovat n. ${fmtEur(Math.abs(gap!))} €/m² kalliimpia kuin seisovat — hinta ei selitä menekkiä tässä, vaan tuote, tekijä ja mikrosijainti.`);
+        reasons.push({ fi: 'Myyvät kohteet ovat n. {v} €/m² kalliimpia kuin seisovat — hinta ei selitä menekkiä tässä, vaan tuote, tekijä ja mikrosijainti.', vars: { v: fmtEur(Math.abs(gap!)) } });
     } else if (gap != null && gap < -300 && enough) {
-        reasons.push(`Myyvät ovat n. ${fmtEur(Math.abs(gap))} €/m² edullisempia — hinnoittelu alueen kauppatasoon ratkaisee.`);
+        reasons.push({ fi: 'Myyvät ovat n. {v} €/m² edullisempia — hinnoittelu alueen kauppatasoon ratkaisee.', vars: { v: fmtEur(Math.abs(gap)) } });
     }
 
     // 2. builder concentration
@@ -682,56 +690,57 @@ export function compareMoversStalled(list: SthProject[]): MoverStalledCompare | 
     };
     const sb = topBuilder(stalled);
     if (sb && sb.n >= 2 && sb.n / stalled.length >= 0.5) {
-        reasons.push(`Seisova kanta keskittyy yhdelle rakentajalle: ${sb.name} (${sb.n} kohdetta) — ongelma voi olla kohde- eikä aluekohtainen.`);
+        reasons.push({ fi: 'Seisova kanta keskittyy yhdelle rakentajalle: {name} ({n} kohdetta) — ongelma voi olla kohde- eikä aluekohtainen.', vars: { name: sb.name, n: sb.n } });
     }
     const mb = topBuilder(movers);
     if (mb && mb.n >= 3 && mb.n / movers.length >= 0.6) {
-        reasons.push(`Myynti nojaa vahvasti yhteen tekijään: ${mb.name} (${mb.n} kohdetta) — konsepti todistetusti toimii täällä.`);
+        reasons.push({ fi: 'Myynti nojaa vahvasti yhteen tekijään: {name} ({n} kohdetta) — konsepti todistetusti toimii täällä.', vars: { name: mb.name, n: mb.n } });
     }
 
     if (enough) {
         // 3. product class & unit size
         if (m.smallHomeShare - s.smallHomeShare > 0.25) {
-            reasons.push('Myyvissä painottuvat pientalot ja rivitalot, seisovissa kerrostalot.');
+            reasons.push({ fi: 'Myyvissä painottuvat pientalot ja rivitalot, seisovissa kerrostalot.' });
         } else if (s.smallHomeShare - m.smallHomeShare > 0.25) {
-            reasons.push('Myyvissä painottuvat kerrostalot, seisovissa pientalokohteet.');
+            reasons.push({ fi: 'Myyvissä painottuvat kerrostalot, seisovissa pientalokohteet.' });
         }
         if (m.medAvgSize != null && s.medAvgSize != null) {
             const sizeDelta = m.medAvgSize - s.medAvgSize;
             if (Math.abs(sizeDelta) >= 8 && Math.abs(m.smallHomeShare - s.smallHomeShare) <= 0.25) {
+                const sizeVars = { a: Math.round(m.medAvgSize), b: Math.round(s.medAvgSize) };
                 reasons.push(sizeDelta < 0
-                    ? `Myyvissä asunnot ovat pienempiä (ka. ${Math.round(m.medAvgSize)} vs ${Math.round(s.medAvgSize)} m²) — pienempi kokonaishinta liikkuu.`
-                    : `Myyvissä asunnot ovat suurempia (ka. ${Math.round(m.medAvgSize)} vs ${Math.round(s.medAvgSize)} m²) — alue vetää tilaa hakevia.`);
+                    ? { fi: 'Myyvissä asunnot ovat pienempiä (ka. {a} vs {b} m²) — pienempi kokonaishinta liikkuu.', vars: sizeVars }
+                    : { fi: 'Myyvissä asunnot ovat suurempia (ka. {a} vs {b} m²) — alue vetää tilaa hakevia.', vars: sizeVars });
             }
         }
         // 4. project scale: small packages clear, big projects stall
         if (m.medUnits != null && s.medUnits != null && s.medUnits - m.medUnits >= 15) {
-            reasons.push(`Myyvät ovat pienempiä kohteita (md. ${Math.round(m.medUnits)} vs ${Math.round(s.medUnits)} as.) — iso kohde tarvitsee montaa ostajaa samaan aikaan.`);
+            reasons.push({ fi: 'Myyvät ovat pienempiä kohteita (md. {a} vs {b} as.) — iso kohde tarvitsee montaa ostajaa samaan aikaan.', vars: { a: Math.round(m.medUnits), b: Math.round(s.medUnits) } });
         }
         // 5. tenure
         if (m.ownShare - s.ownShare > 0.3) {
-            reasons.push('Myyvät ovat useammin omalla tontilla — vuokratontti karsii ostajia täällä.');
+            reasons.push({ fi: 'Myyvät ovat useammin omalla tontilla — vuokratontti karsii ostajia täällä.' });
         }
         const sekaShare = stalled.filter(p => p.tenure === 'seka').length / stalled.length;
         if (sekaShare >= 0.3) {
-            reasons.push('Sekamuotoinen tonttijärjestely (osaomistus) korostuu seisovissa — vaikeasti myytävä rakenne.');
+            reasons.push({ fi: 'Sekamuotoinen tonttijärjestely (osaomistus) korostuu seisovissa — vaikeasti myytävä rakenne.' });
         }
         // 6. price cuts: cuts tend to RE-ACTIVATE sales; stalled-with-cuts is the hard core
         if (s.cutShare > 0.4 && s.cutShare - m.cutShare > 0.2) {
-            reasons.push(`Seisovista ${Math.round(s.cutShare * 100)} % on jo laskenut hintaa eikä kauppa silti käy — ongelma tuskin ratkeaa hinnalla.`);
+            reasons.push({ fi: 'Seisovista {p} % on jo laskenut hintaa eikä kauppa silti käy — ongelma tuskin ratkeaa hinnalla.', vars: { p: Math.round(s.cutShare * 100) } });
         } else if (m.cutShare >= 0.3) {
-            reasons.push(`Osa myyvistä aktivoitui vasta hinnanalennuksen jälkeen (${Math.round(m.cutShare * 100)} % myyvistä laskenut hintaa).`);
+            reasons.push({ fi: 'Osa myyvistä aktivoitui vasta hinnanalennuksen jälkeen ({p} % myyvistä laskenut hintaa).', vars: { p: Math.round(m.cutShare * 100) } });
         }
     }
     // 7. finished-unsold overhang — the hardest evidence of overpricing or wrong product
     if (finishedStockMatters(stalledCompleted.length, finishedUnsoldUnits)) {
-        reasons.push(`${stalledCompleted.length} valmista kohdetta seisoo myymättä (${finishedUnsoldUnits} valmista asuntoa) — valmis varasto painaa koko alueen hintatasoa.`);
+        reasons.push({ fi: '{n} valmista kohdetta seisoo myymättä ({u} valmista asuntoa) — valmis varasto painaa koko alueen hintatasoa.', vars: { n: stalledCompleted.length, u: finishedUnsoldUnits } });
     }
     if (regulatedStalled >= 2) {
-        reasons.push(`Lisäksi ${regulatedStalled} säänneltyä kohdetta (hitas/ara-tyyppi) seisoo — eivät mukana hintavertailussa, mutta kilpailevat samoista ostajista.`);
+        reasons.push({ fi: 'Lisäksi {n} säänneltyä kohdetta (hitas/ara-tyyppi) seisoo — eivät mukana hintavertailussa, mutta kilpailevat samoista ostajista.', vars: { n: regulatedStalled } });
     }
     if (inverted && reasons.length === 1) {
-        reasons.push('Ero ei selity tuotejaolla — todennäköisiä tekijöitä ovat mikrosijainti (ranta, näkymät, palvelut) ja kohteen laatutaso.');
+        reasons.push({ fi: 'Ero ei selity tuotejaolla — todennäköisiä tekijöitä ovat mikrosijainti (ranta, näkymät, palvelut) ja kohteen laatutaso.' });
     }
     return { movers, stalled, m, s, gapOwn, gapLease, inverted, finishedUnsoldUnits, finishedStalledCount: stalledCompleted.length, reasons };
 }

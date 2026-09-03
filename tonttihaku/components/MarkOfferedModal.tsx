@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { PlotData, MarkOfferedData } from '@/types';
+import { useT } from '@/lib/i18n';
 
 interface MarkOfferedModalProps {
     isOpen: boolean;
@@ -16,6 +17,7 @@ export default function MarkOfferedModal({
     onSave,
     plot
 }: MarkOfferedModalProps) {
+    const t = useT();
     const { username } = useAuth();
     const [formData, setFormData] = useState({
         offerPrice: '',
@@ -63,12 +65,12 @@ export default function MarkOfferedModal({
                     type="button"
                     onClick={onClose}
                     className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 text-2xl font-bold leading-none"
-                    aria-label="Sulje"
+                    aria-label={t('Sulje')}
                 >
                     ×
                 </button>
 
-                <h2 className="text-xl font-bold mb-4 pr-8">Merkitse tarjotuksi</h2>
+                <h2 className="text-xl font-bold mb-4 pr-8">{t('Merkitse tarjotuksi')}</h2>
 
                 <div className="mb-4 text-sm text-gray-600 bg-gray-50 p-2 rounded">
                     <p className="font-semibold">{plot.name}</p>
@@ -77,7 +79,7 @@ export default function MarkOfferedModal({
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="bg-blue-50 p-3 rounded border border-blue-100">
-                        <label className="block text-xs font-semibold text-gray-700 uppercase">Kirjaajan nimi *</label>
+                        <label className="block text-xs font-semibold text-gray-700 uppercase">{t('Kirjaajan nimi *')}</label>
                         <input
                             name="updatedBy"
                             type="text"
@@ -85,13 +87,13 @@ export default function MarkOfferedModal({
                             value={formData.updatedBy}
                             onChange={handleChange}
                             className="w-full border rounded p-2 text-sm"
-                            placeholder="Oma nimesi"
+                            placeholder={t('Oma nimesi')}
                             autoFocus
                         />
                     </div>
 
                     <div>
-                        <label className="block text-xs font-semibold text-gray-700 uppercase">Tarjoushinta (€) *</label>
+                        <label className="block text-xs font-semibold text-gray-700 uppercase">{t('Tarjoushinta (€) *')}</label>
                         <input
                             name="offerPrice"
                             type="number"
@@ -104,7 +106,7 @@ export default function MarkOfferedModal({
                     </div>
 
                     <div>
-                        <label className="block text-xs font-semibold text-gray-700 uppercase">Tarjouspäivä *</label>
+                        <label className="block text-xs font-semibold text-gray-700 uppercase">{t('Tarjouspäivä *')}</label>
                         <input
                             name="offerDate"
                             type="date"
@@ -116,14 +118,14 @@ export default function MarkOfferedModal({
                     </div>
 
                     <div>
-                        <label className="block text-xs font-semibold text-gray-700 uppercase">Lisätiedot</label>
+                        <label className="block text-xs font-semibold text-gray-700 uppercase">{t('Lisätiedot')}</label>
                         <textarea
                             name="desc"
                             rows={2}
                             value={formData.desc}
                             onChange={handleChange}
                             className="w-full border rounded p-2 text-sm"
-                            placeholder="Valinnainen kuvaus..."
+                            placeholder={t('Valinnainen kuvaus...')}
                         />
                     </div>
 
@@ -133,13 +135,13 @@ export default function MarkOfferedModal({
                             onClick={onClose}
                             className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50"
                         >
-                            Peruuta
+                            {t('Peruuta')}
                         </button>
                         <button
                             type="submit"
                             className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700"
                         >
-                            Merkitse tarjotuksi
+                            {t('Merkitse tarjotuksi')}
                         </button>
                     </div>
                 </form>

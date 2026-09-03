@@ -1,6 +1,7 @@
 "use client";
 import React from 'react';
 import { PlotData, ContactLog, Note } from '@/types';
+import { useT } from '@/lib/i18n';
 
 interface HistoryModalProps {
     isOpen: boolean;
@@ -9,6 +10,7 @@ interface HistoryModalProps {
 }
 
 export default function HistoryModal({ isOpen, onClose, plot }: HistoryModalProps) {
+    const t = useT();
     if (!isOpen) return null;
 
     // Parse logs and notes
@@ -44,17 +46,17 @@ export default function HistoryModal({ isOpen, onClose, plot }: HistoryModalProp
                     type="button"
                     onClick={onClose}
                     className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 text-2xl font-bold leading-none"
-                    aria-label="Sulje"
+                    aria-label={t('Sulje')}
                 >
                     ×
                 </button>
 
-                <h2 className="text-xl font-bold mb-1 pr-8">Historia</h2>
+                <h2 className="text-xl font-bold mb-1 pr-8">{t('Historia')}</h2>
                 <p className="text-sm text-gray-600 mb-4">{plot.name}</p>
 
                 <div className="flex-1 overflow-y-auto space-y-3 pr-2">
                     {historyItems.length === 0 ? (
-                        <p className="text-center text-gray-500 py-8">Ei historiaa.</p>
+                        <p className="text-center text-gray-500 py-8">{t('Ei historiaa.')}</p>
                     ) : (
                         historyItems.map((item: any) => (
                             <div
@@ -68,7 +70,7 @@ export default function HistoryModal({ isOpen, onClose, plot }: HistoryModalProp
                                     <div>
                                         <span className={`font-bold uppercase text-xs ${item.type === 'contact' ? 'text-green-700' : 'text-gray-500'
                                             }`}>
-                                            {item.type === 'contact' ? 'Kontaktointi' : 'Muistiinpano'}
+                                            {item.type === 'contact' ? t('Kontaktointi') : t('Muistiinpano')}
                                         </span>
                                         <div className="text-xs text-gray-500">
                                             {new Date(item.type === 'contact' ? item.date : item.timestamp).toLocaleDateString()}
@@ -84,7 +86,7 @@ export default function HistoryModal({ isOpen, onClose, plot }: HistoryModalProp
                 </div>
 
                 <div className="mt-4 pt-4 border-t text-right">
-                    <button onClick={onClose} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm text-gray-700">Sulje</button>
+                    <button onClick={onClose} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded text-sm text-gray-700">{t('Sulje')}</button>
                 </div>
             </div>
         </div>

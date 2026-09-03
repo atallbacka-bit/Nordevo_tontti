@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useEffect } from 'react';
+import { useT } from '@/lib/i18n';
 
 interface ContactPerson {
     id: string;
@@ -17,6 +18,7 @@ interface LogContactModalProps {
 }
 
 export default function LogContactModal({ isOpen, onClose, onSave, contactPersons = [], currentAgent = '', onManageContacts, preselectedPersonId }: LogContactModalProps) {
+    const t = useT();
     const [formData, setFormData] = useState({
         date: new Date().toISOString().split('T')[0],
         desc: '',
@@ -73,16 +75,16 @@ export default function LogContactModal({ isOpen, onClose, onSave, contactPerson
                     type="button"
                     onClick={onClose}
                     className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 text-2xl font-bold leading-none"
-                    aria-label="Sulje"
+                    aria-label={t('Sulje')}
                 >
                     ×
                 </button>
 
-                <h2 className="text-lg font-bold mb-4">Uusi kontaktointi</h2>
+                <h2 className="text-lg font-bold mb-4">{t('Uusi kontaktointi')}</h2>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
-                        <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Päivämäärä *</label>
+                        <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">{t('Päivämäärä *')}</label>
                         <input
                             name="date"
                             type="date"
@@ -96,14 +98,14 @@ export default function LogContactModal({ isOpen, onClose, onSave, contactPerson
                     {/* Contact Person Selection (Strict) */}
                     <div>
                         <div className="flex justify-between items-center mb-1">
-                            <label className="block text-xs font-semibold text-gray-700 uppercase">Kenen kanssa? *</label>
+                            <label className="block text-xs font-semibold text-gray-700 uppercase">{t('Kenen kanssa? *')}</label>
                             {onManageContacts && (
                                 <button
                                     type="button"
                                     onClick={onManageContacts}
                                     className="text-xs text-blue-600 hover:underline ml-3"
                                 >
-                                    + Lisää uusi
+                                    {t('+ Lisää uusi')}
                                 </button>
                             )}
                         </div>
@@ -116,20 +118,20 @@ export default function LogContactModal({ isOpen, onClose, onSave, contactPerson
                                 className="w-full border rounded p-2 text-sm bg-white"
                                 required
                             >
-                                <option value="" disabled>Valitse henkilö...</option>
+                                <option value="" disabled>{t('Valitse henkilö...')}</option>
                                 {contactPersons.map(p => (
                                     <option key={p.id} value={p.id}>{p.name}</option>
                                 ))}
                             </select>
                         ) : (
                             <div className="text-sm text-gray-500 italic p-2 border rounded bg-gray-50">
-                                Ei yhteyshenkilöitä. Lisää uusi aloittaaksesi.
+                                {t('Ei yhteyshenkilöitä. Lisää uusi aloittaaksesi.')}
                             </div>
                         )}
                     </div>
 
                     <div>
-                        <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Kommentti *</label>
+                        <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">{t('Kommentti *')}</label>
                         <textarea
                             name="desc"
                             required
@@ -137,11 +139,11 @@ export default function LogContactModal({ isOpen, onClose, onSave, contactPerson
                             value={formData.desc}
                             onChange={handleChange}
                             className="w-full border rounded p-2 text-sm"
-                            placeholder="Mitä sovittiin / tapahtui..."
+                            placeholder={t('Mitä sovittiin / tapahtui...')}
                         />
                     </div>
                     <div>
-                        <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Kontaktoija (Sinun nimesi) *</label>
+                        <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">{t('Kontaktoija (Sinun nimesi) *')}</label>
                         <input
                             name="agent"
                             type="text"
@@ -149,13 +151,13 @@ export default function LogContactModal({ isOpen, onClose, onSave, contactPerson
                             value={formData.agent}
                             onChange={handleChange}
                             className="w-full border rounded p-2 text-sm"
-                            placeholder="Nimi"
+                            placeholder={t('Nimi')}
                         />
                     </div>
 
                     <div className="flex justify-end space-x-3 pt-2">
-                        <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50">Peruuta</button>
-                        <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700">Tallenna</button>
+                        <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50">{t('Peruuta')}</button>
+                        <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700">{t('Tallenna')}</button>
                     </div>
                 </form>
             </div>

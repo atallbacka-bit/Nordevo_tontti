@@ -17,6 +17,7 @@ import {
     gradeResale, LIQUIDITY_LABEL, LIQUIDITY_COLOR,
 } from '@/lib/resaleAnalysis';
 import { POSTAL_INFO } from '@/lib/postalInfo';
+import { useT, useLang } from '@/lib/i18n';
 
 // One-stop market analysis for a clicked point (or postal area) on the map.
 // Layout is verdict-first: the header carries identity (area, kiinteistötunnus),
@@ -129,6 +130,7 @@ function pct(vals: number[], p: number): number | null {
 
 // One axis, every price level on it — the premium is the visible gap.
 function PriceLadder({ points }: { points: { label: string; value: number; color: string; hint?: string }[] }) {
+    const t = useT();
     const W = 360, H = 80, y = 42;
     const vals = points.map(p => p.value);
     const lo = Math.min(...vals), hi = Math.max(...vals);
@@ -142,9 +144,9 @@ function PriceLadder({ points }: { points: { label: string; value: number; color
                 const above = i % 2 === 0; // alternate label sides to dodge collisions
                 return (
                     <g key={p.label}>
-                        {p.hint && <title>{p.hint}</title>}
+                        {p.hint && <title>{t(p.hint)}</title>}
                         <circle cx={x(p.value)} cy={y} r={4.5} fill={p.color} />
-                        <text x={x(p.value)} y={above ? y - 22 : y + 18} textAnchor="middle" fontSize={8} fill="#64748b" fontWeight={600}>{p.label}</text>
+                        <text x={x(p.value)} y={above ? y - 22 : y + 18} textAnchor="middle" fontSize={8} fill="#64748b" fontWeight={600}>{t(p.label)}</text>
                         <text x={x(p.value)} y={above ? y - 11 : y + 30} textAnchor="middle" fontSize={9.5} fill="#0f172a" fontWeight={800}>{fmtEur(p.value)}</text>
                     </g>
                 );
@@ -155,9 +157,10 @@ function PriceLadder({ points }: { points: { label: string; value: number; color
 
 // One row of the answer block: explicit question → answer → one-line basis.
 function AnswerRow({ q, basis, children }: { q: string; basis?: React.ReactNode; children: React.ReactNode }) {
+    const t = useT();
     return (
         <div className="px-3 py-2 flex items-center gap-2.5">
-            <div className="w-[74px] flex-none text-[9px] font-bold uppercase tracking-[0.06em] text-slate-400 leading-tight">{q}</div>
+            <div className="w-[74px] flex-none text-[9px] font-bold uppercase tracking-[0.06em] text-slate-400 leading-tight">{t(q)}</div>
             <div className="min-w-0 flex-1">
                 <div className="text-[13px] font-extrabold leading-tight">{children}</div>
                 {basis && <div className="text-[9.5px] text-slate-400 leading-tight mt-0.5">{basis}</div>}
@@ -168,10 +171,11 @@ function AnswerRow({ q, basis, children }: { q: string; basis?: React.ReactNode;
 
 // One cell of the key-numbers grid: label on top, the number big, source under.
 function StatTile({ label, note, title, action, children }: { label: string; note?: React.ReactNode; title?: string; action?: React.ReactNode; children: React.ReactNode }) {
+    const t = useT();
     return (
-        <div className="bg-white px-3 py-2 min-w-0" title={title}>
+        <div className="bg-white px-3 py-2 min-w-0" title={title ? t(title) : undefined}>
             <div className="flex items-center justify-between gap-1">
-                <MicroLabel>{label}</MicroLabel>
+                <MicroLabel>{t(label)}</MicroLabel>
                 {action}
             </div>
             <div className="text-[15px] font-extrabold tabular-nums leading-tight mt-0.5">{children}</div>
@@ -194,11 +198,12 @@ export function scatterEligible(projects: SthProject[]): SthProject[] {
     return projects.filter(p => p.eurM2 > 0 && p.financing === 'V');
 }
 
-function projectInfoLine(p: SthProject): string {
-    return `${p.name} · ${fmtEur(p.eurM2)} €/m² (${p.tenure === 'oma' ? 'oma tontti' : p.tenure === 'vuokra' ? 'vuokratontti' : 'seka'}) · ${p.forSale <= 0 ? 'loppuunmyyty' : p.monthsInventory == null ? 'ei kauppoja 12 kk' : `varasto ${formatMonthsInv(p.monthsInventory)} kk`} · ${p.units.toFixed(0)} as.`;
+function projectInfoLine(p: SthProject, t: (fi: string, vars?: Record<string, string | number>) => string): string {
+    return `${p.name} · ${fmtEur(p.eurM2)} €/m² (${p.tenure === 'oma' ? t('oma tontti') : p.tenure === 'vuokra' ? t('vuokratontti') : t('seka')}) · ${p.forSale <= 0 ? t('loppuunmyyty') : p.monthsInventory == null ? t('ei kauppoja 12 kk') : t('varasto {m} kk', { m: formatMonthsInv(p.monthsInventory) })} · ${t('{n} as.', { n: p.units.toFixed(0) })}`;
 }
 
 function AbsorptionScatter({ projects }: { projects: SthProject[] }) {
+    const t = useT();
     const [sel, setSel] = useState<SthProject | null>(null);
     const pts = scatterEligible(projects);
     if (pts.length < 3) return null;
@@ -232,7 +237,7 @@ function AbsorptionScatter({ projects }: { projects: SthProject[] }) {
                     const isSel = sel?.key === p.key;
                     return (
                         <g key={p.key} onClick={() => setSel(isSel ? null : p)} style={{ cursor: 'pointer' }}>
-                            <title>{projectInfoLine(p)}</title>
+                            <title>{projectInfoLine(p, t)}</title>
                             {isSel && <circle cx={cx} cy={cy} r={r + 3} fill="none" stroke="#0f172a" strokeWidth={1.5} />}
                             {p.tenure === 'vuokra'
                                 ? <circle cx={cx} cy={cy} r={r} fill="none" stroke={grade.color} strokeWidth={2} opacity={0.85} />
@@ -243,7 +248,7 @@ function AbsorptionScatter({ projects }: { projects: SthProject[] }) {
             </svg>
             {sel && (
                 <div className="text-[10px] text-slate-700 font-medium bg-slate-50 rounded px-1.5 py-1 -mt-1">
-                    {projectInfoLine(sel)}
+                    {projectInfoLine(sel, t)}
                 </div>
             )}
         </>
@@ -253,6 +258,7 @@ function AbsorptionScatter({ projects }: { projects: SthProject[] }) {
 // Realized transactions per quarter — the newest quarter is preliminary and
 // rendered hollow so nobody reads an accruing number as a collapse.
 function QuarterBars({ quarters }: { quarters: { q: string; count: number; prelim: boolean }[] }) {
+    const t = useT();
     if (!quarters.length) return null;
     const W = 360, H = 64, B = 14;
     const max = Math.max(1, ...quarters.map(x => x.count));
@@ -264,7 +270,7 @@ function QuarterBars({ quarters }: { quarters: { q: string; count: number; preli
                 const xPos = 4 + i * bw;
                 return (
                     <g key={qq.q}>
-                        <title>{`${qq.q}: ${qq.count} kauppaa${qq.prelim ? ' (ennakkotieto, täydentyy)' : ''}`}</title>
+                        <title>{`${qq.q}: ${t('{n} kauppaa', { n: qq.count })}${qq.prelim ? t(' (ennakkotieto, täydentyy)') : ''}`}</title>
                         <rect x={xPos + 2} y={H - B - h} width={bw - 4} height={h} rx={2}
                             fill={qq.prelim ? 'none' : '#64748b'} stroke={qq.prelim ? '#94a3b8' : 'none'} strokeWidth={qq.prelim ? 1.2 : 0} strokeDasharray={qq.prelim ? '3 2' : undefined} />
                         <text x={xPos + bw / 2} y={H - B - h - 3} textAnchor="middle" fontSize={7.5} fill="#475569" fontWeight={700}>{qq.count}</text>
@@ -284,6 +290,8 @@ const TONE_COLOR: Record<Tone, string> = { pos: '#16a34a', neu: '#94a3b8', neg: 
 interface VerdictLine { tone: Tone; text: string }
 
 export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusChange, dataset, areaStats, plans, parcel, onClose }: Props) {
+    const t = useT();
+    const { lang } = useLang();
     const [mounted, setMounted] = useState(false);
     const [postalFC, setPostalFC] = useState<PostalAreaFC | null>(null);
     const [rail, setRail] = useState<RailStation[] | null>(null);
@@ -404,10 +412,10 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
             { list: comps.rent.filter(l => inRadius(l) && isNewish(l)), source: '2010-luvun kannan vuokrista säteellä', est: true },
             { list: comps.rent.filter(isNewish), source: '2010-luvun kannan vuokrista lähialueella', est: true },
         ];
-        for (const t of tiers) {
-            if (t.list.length >= 3) {
-                const med = median(t.list.map(l => l.eurM2));
-                if (med != null) return { med, n: t.list.length, source: t.source, est: t.est };
+        for (const tier of tiers) {
+            if (tier.list.length >= 3) {
+                const med = median(tier.list.map(l => l.eurM2));
+                if (med != null) return { med, n: tier.list.length, source: tier.source, est: tier.est };
             }
         }
         return null;
@@ -530,7 +538,7 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
     const premium = omaEquivClearing && premiumBase ? omaEquivClearing.value / premiumBase - 1 : null;
 
     const marketLoading = compsLoading || resaleLoading;
-    const nKohdetta = (n: number) => `${n} ${n === 1 ? 'kohde' : 'kohdetta'}`;
+    const nKohdetta = (n: number) => (n === 1 ? t('{n} kohde', { n }) : t('{n} kohdetta', { n }));
 
     // ── Why do some projects sell? (movers vs stalled decomposition) ──
     const radiusProjects = a.nearby.map(x => x.project);
@@ -558,15 +566,15 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
         const kauppaa = `${st.sold12.toFixed(0)} uudiskauppa${Math.round(st.sold12) === 1 ? '' : 'a'} 12 kk`;
         if (!sthThin) {
             if (mi != null && mi <= 10 && st.sold12 >= 8) {
-                areaVerdict = { label: 'Kyllä', color: '#16a34a', basis: `${kauppaa} · varasto ${formatMonthsInv(mi)} kk`, source: 'uudis' };
+                areaVerdict = { label: 'Kyllä', color: '#16a34a', basis: `${kauppaa} · ${t('varasto {m} kk', { m: formatMonthsInv(mi) })}`, source: 'uudis' };
             } else if (mi != null && mi <= 18) {
-                areaVerdict = { label: 'Kohtalaisesti', color: '#d97706', basis: `${kauppaa} · varasto ${formatMonthsInv(mi)} kk`, source: 'uudis' };
+                areaVerdict = { label: 'Kohtalaisesti', color: '#d97706', basis: `${kauppaa} · ${t('varasto {m} kk', { m: formatMonthsInv(mi) })}`, source: 'uudis' };
             } else {
-                areaVerdict = { label: 'Heikosti', color: '#dc2626', basis: mi == null ? `${st.forSale.toFixed(0)} as. myynnissä, ei kauppoja 12 kk` : `varasto riittäisi ${formatMonthsInv(mi)} kk`, source: 'uudis' };
+                areaVerdict = { label: 'Heikosti', color: '#dc2626', basis: mi == null ? t('{n} as. myynnissä, ei kauppoja 12 kk', { n: st.forSale.toFixed(0) }) : t('varasto riittäisi {m} kk', { m: formatMonthsInv(mi) }), source: 'uudis' };
             }
         } else if (resaleGrade && resaleLiq && resalePooled) {
-            const miTxt = resaleLiq.monthsInventory != null ? ` · varasto ≈ ${formatMonthsInv(resaleLiq.monthsInventory)} kk (KT)` : '';
-            const basis = `Vanha kanta: ${resalePooled.sales12mo} kauppaa 12 kk${miTxt}`;
+            const miTxt = resaleLiq.monthsInventory != null ? ` · ${t('varasto ≈ {m} kk (KT)', { m: formatMonthsInv(resaleLiq.monthsInventory) })}` : '';
+            const basis = `${t('Vanha kanta: {n} kauppaa 12 kk', { n: resalePooled.sales12mo })}${miTxt}`;
             if (resaleGrade === 'vilkas' || resaleGrade === 'normaali') {
                 areaVerdict = { label: resaleGrade === 'vilkas' ? 'Kyllä' : 'Kyllä, maltilla', color: resaleGrade === 'vilkas' ? '#16a34a' : '#65a30d', basis, source: 'vanha' };
             } else {
@@ -579,8 +587,8 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
     const ap = area?.properties;
     const infillBuild = sthThin && (fastestBand || ap?.ktShare != null)
         ? {
-            label: `${ap?.ktShare != null && ap.ktShare < 0.45 ? 'Rivitalo / pientalo' : 'Kerrostalo'}${fastestBand ? `, ${fastestBand.id} m²` : ''}`,
-            basis: fastestBand ? `${fastestBand.id} m² viipyy myynnissä lyhimpään` : 'alueen asuntokannan rakenne',
+            label: `${ap?.ktShare != null && ap.ktShare < 0.45 ? t('Rivitalo / pientalo') : t('Kerrostalo')}${fastestBand ? `, ${fastestBand.id} m²` : ''}`,
+            basis: fastestBand ? t('{b} m² viipyy myynnissä lyhimpään', { b: fastestBand.id }) : t('alueen asuntokannan rakenne'),
         }
         : null;
 
@@ -591,27 +599,27 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
     const signals: VerdictLine[] = [];
     {
         if (st.projects === 0) {
-            signals.push({ tone: 'neu', text: 'Ei STH-uudiskohteita säteellä — arvio nojaa vanhan kannan kauppaan.' });
+            signals.push({ tone: 'neu', text: t('Ei STH-uudiskohteita säteellä — arvio nojaa vanhan kannan kauppaan.') });
         } else if (sthThin) {
-            signals.push({ tone: 'neu', text: `Vain ${st.projects} uudiskohde${st.projects > 1 ? 'tta' : ''} säteellä — ohut uudisnäyttö, vanhan kannan kauppa painaa arviossa.` });
+            signals.push({ tone: 'neu', text: t('Vain {n} uudiskohdetta säteellä — ohut uudisnäyttö, vanhan kannan kauppa painaa arviossa.', { n: st.projects }) });
         }
         if (!sthThin && (resaleGrade === 'jaassa' || resaleGrade === 'hidas') && resalePooled && resaleLiq) {
-            signals.push({ tone: 'neg', text: `Myös vanha kanta liikkuu hitaasti (${resalePooled.sales12mo} kauppaa 12 kk${resaleLiq.domMedian != null ? `, ilmoitukset md ${Math.round(resaleLiq.domMedian)} vrk vanhoja` : ''}).` });
+            signals.push({ tone: 'neg', text: `${t('Myös vanha kanta liikkuu hitaasti ({n} kauppaa 12 kk', { n: resalePooled.sales12mo })}${resaleLiq.domMedian != null ? t(', ilmoitukset md {d} vrk vanhoja', { d: Math.round(resaleLiq.domMedian) }) : ''}).` });
         }
         if (sthThin && askVsRealized != null && askVsRealized > 0.12) {
             signals.push({ tone: 'neg', text: `Pyynnit ${Math.round(askVsRealized * 100)} % yli toteutuneiden — vanhan kannan pyyntitasoon ei kannata ankkuroitua.` });
         }
         // when price does NOT explain absorption, say why the sellers sell
         if (cmp && cmp.reasons.length > 0 && cmp.inverted) {
-            signals.push({ tone: 'neu', text: cmp.reasons[0] });
+            signals.push({ tone: 'neu', text: t(cmp.reasons[0].fi, cmp.reasons[0].vars) });
         }
         if (premium != null && premium > 0.55) {
-            signals.push({ tone: 'neg', text: `Uudispreemio vanhaan kantaan +${Math.round(premium * 100)} % (vs. ${premiumVsRealized ? 'toteutuneet kaupat' : 'pyyntihinnat'}) — korkea preemio hidastaa myyntiä.` });
+            signals.push({ tone: 'neg', text: t('Uudispreemio vanhaan kantaan +{p} % (vs. {ref}) — korkea preemio hidastaa myyntiä.', { p: Math.round(premium * 100), ref: premiumVsRealized ? t('toteutuneet kaupat') : t('pyyntihinnat') }) });
         }
         if (whiteSpace) {
-            signals.push({ tone: 'pos', text: `Valkoinen alue: kysyntä vetää, mutta tulevaa tarjontaa on vain ${st.pipelineUnits.toFixed(0)} asuntoa.` });
+            signals.push({ tone: 'pos', text: t('Valkoinen alue: kysyntä vetää, mutta tulevaa tarjontaa on vain {n} asuntoa.', { n: st.pipelineUnits.toFixed(0) }) });
         } else if (st.projects > 0 && st.pipelineUnits > Math.max(20, st.sold12 * 1.5)) {
-            signals.push({ tone: 'neg', text: `Keskeneräisissä kohteissa ${st.pipelineUnits.toFixed(0)} myymätöntä asuntoa — tuleva tarjonta painaa markkinaa.` });
+            signals.push({ tone: 'neg', text: t('Keskeneräisissä kohteissa {n} myymätöntä asuntoa — tuleva tarjonta painaa markkinaa.', { n: st.pipelineUnits.toFixed(0) }) });
         }
     }
 
@@ -636,20 +644,20 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
     // Likvidi hinta tile: one truncating line on the tile, full story on hover
     const liquidNote = liquidBand
         ? liquidBand.source === 'movers'
-            ? `myyvät kohteet, oma tontti (${liquidBand.n})`
+            ? t('myyvät kohteet, oma tontti ({n})', { n: liquidBand.n })
             : liquidBand.source === 'movers-converted'
                 ? (omaMoverVals.length > 0
-                    ? `myyvät: ${omaMoverVals.length} oma + ${leaseMoverVals.length} vt + tontti`
-                    : `myyvät vt-kohteet + tontin arvo (${liquidBand.n})`)
-                : 'vanha toteutunut + uudispreemio'
+                    ? t('myyvät: {a} oma + {b} vt + tontti', { a: omaMoverVals.length, b: leaseMoverVals.length })
+                    : t('myyvät vt-kohteet + tontin arvo ({n})', { n: liquidBand.n }))
+                : t('vanha toteutunut + uudispreemio')
         : undefined;
     const liquidTitle = liquidBand
-        ? liquidBand.source === 'movers' ? `Myyvien uudiskohteiden taso omalla tontilla (${nKohdetta(liquidBand.n)})`
+        ? liquidBand.source === 'movers' ? t('Myyvien uudiskohteiden taso omalla tontilla ({n})', { n: nKohdetta(liquidBand.n) })
             : liquidBand.source === 'movers-converted'
                 ? (omaMoverVals.length > 0
-                    ? `Myyvät: ${nKohdetta(omaMoverVals.length)} omalla tontilla + ${leaseMoverVals.length} vuokratontilla tontin arvolla${plotEstimate ? ` ${fmtEur(plotEstimate.value)} €/m²` : ''}`
-                    : `Myyvät vuokratonttikohteet + tontin arvo${plotEstimate ? ` ${fmtEur(plotEstimate.value)} €/m²` : ''} (${nKohdetta(liquidBand.n)})`)
-                : `Arvio: toteutunut vanha ${fmtEur(resalePooled?.ktEurM2)} €/m² + uudispreemio ${liquidBand.premiumUsed ? `${Math.round((liquidBand.premiumUsed - 1) * 100)} %` : ''}`
+                    ? t('Myyvät: {a} omalla tontilla + {b} vuokratontilla tontin arvolla{plot}', { a: nKohdetta(omaMoverVals.length), b: leaseMoverVals.length, plot: plotEstimate ? ` ${fmtEur(plotEstimate.value)} €/m²` : '' })
+                    : t('Myyvät vuokratonttikohteet + tontin arvo{plot} ({n})', { plot: plotEstimate ? ` ${fmtEur(plotEstimate.value)} €/m²` : '', n: nKohdetta(liquidBand.n) }))
+                : t('Arvio: toteutunut vanha {v} €/m² + uudispreemio {p}', { v: fmtEur(resalePooled?.ktEurM2), p: liquidBand.premiumUsed ? `${Math.round((liquidBand.premiumUsed - 1) * 100)} %` : '' })
         : undefined;
 
     // Oikotie reference listings, browsable by age bucket (old stock included)
@@ -734,14 +742,14 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
             <div className="px-4 pt-3.5 pb-3 border-b border-slate-200 bg-slate-50/80">
                 <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                        <div className="text-[10px] font-bold uppercase tracking-[0.07em] text-blue-600 mb-0.5">Markkina-analyysi</div>
+                        <div className="text-[10px] font-bold uppercase tracking-[0.07em] text-blue-600 mb-0.5">{t('Markkina-analyysi')}</div>
                         <div className="text-[15px] font-bold leading-tight">
-                            {area ? `${area.properties.name}` : 'Valittu piste'}
+                            {area ? `${area.properties.name}` : t('Valittu piste')}
                             {area && <span className="text-slate-400 font-semibold"> · {area.properties.code}</span>}
                         </div>
                         <div className="text-[11px] text-slate-500">{area ? area.properties.kunta : `${point.lat.toFixed(4)}, ${point.lng.toFixed(4)}`}</div>
                     </div>
-                    <button onClick={onClose} className="p-1.5 bg-white rounded-full text-slate-400 hover:text-slate-700 border border-slate-200 shadow-sm flex-none" title="Sulje">
+                    <button onClick={onClose} className="p-1.5 bg-white rounded-full text-slate-400 hover:text-slate-700 border border-slate-200 shadow-sm flex-none" title={t('Sulje')}>
                         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                         </svg>
@@ -752,7 +760,7 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
                 {parcel && (
                     <button
                         onClick={copyTunnus}
-                        title={`${parcel.contained ? 'Kiinteistötunnus' : 'Lähin kiinteistö (piste ei osunut palstalle)'} — klikkaa kopioidaksesi`}
+                        title={`${parcel.contained ? t('Kiinteistötunnus') : t('Lähin kiinteistö (piste ei osunut palstalle)')} — ${t('klikkaa kopioidaksesi')}`}
                         className="mt-2 inline-flex items-center gap-1.5 pl-2 pr-1.5 py-1 bg-white border border-slate-200 rounded-md hover:border-slate-300 shadow-sm transition-colors max-w-full"
                     >
                         <svg className="w-3 h-3 text-slate-400 flex-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -762,7 +770,7 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
                             {!parcel.contained && '≈ '}{parcel.tunnus}
                         </span>
                         {parcel.yleinenAlue ? (
-                            <span className="text-[10px] text-slate-400 flex-none">· katu/puisto</span>
+                            <span className="text-[10px] text-slate-400 flex-none">{t('· katu/puisto')}</span>
                         ) : parcel.areaM2 != null && parcel.areaM2 > 0 && (
                             <span className="text-[10px] text-slate-400 flex-none">· {fmtArea(parcel.areaM2)}</span>
                         )}
@@ -778,7 +786,7 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
 
                 {/* Radius selector */}
                 <div className="flex items-center gap-1.5 mt-2.5">
-                    <span className="text-[10px] font-bold uppercase tracking-[0.06em] text-slate-400 mr-1">Säde</span>
+                    <span className="text-[10px] font-bold uppercase tracking-[0.06em] text-slate-400 mr-1">{t('Säde')}</span>
                     {[0.5, 1, 1.5, 2.5].map(r => (
                         <button
                             key={r}
@@ -795,7 +803,7 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
                 {/* Area snippet — what kind of place this is */}
                 {areaInfo && (
                     <div className="px-4 py-2.5 bg-blue-50/50 border-b border-slate-100">
-                        <p className="text-[11px] leading-relaxed text-slate-600 border-l-2 border-blue-300 pl-2.5">{areaInfo}</p>
+                        <p className="text-[11px] leading-relaxed text-slate-600 border-l-2 border-blue-300 pl-2.5">{t(areaInfo)}</p>
                     </div>
                 )}
 
@@ -808,20 +816,20 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
                         <AnswerRow q="Myykö alue?" basis={areaVerdict?.basis}>
                             {areaVerdict
                                 ? <span style={{ color: areaVerdict.color }}>
-                                    {areaVerdict.label}
-                                    {areaVerdict.source === 'vanha' && <span className="ml-1.5 text-[8.5px] font-bold uppercase tracking-wide text-slate-400 align-middle">vanhan kannan data</span>}
+                                    {t(areaVerdict.label)}
+                                    {areaVerdict.source === 'vanha' && <span className="ml-1.5 text-[8.5px] font-bold uppercase tracking-wide text-slate-400 align-middle">{t('vanhan kannan data')}</span>}
                                 </span>
                                 : marketLoading
-                                    ? <span className="text-slate-300 animate-pulse">Haetaan…</span>
-                                    : <span className="text-slate-300">Ei dataa</span>}
+                                    ? <span className="text-slate-300 animate-pulse">{t('Haetaan…')}</span>
+                                    : <span className="text-slate-300">{t('Ei dataa')}</span>}
                         </AnswerRow>
                         {/* The four numbers that matter, presented big. Everything
                             else about how they arise lives in the sections below. */}
                         <div className="grid grid-cols-2 gap-px bg-slate-100">
                             <StatTile
                                 label="Likvidi hinta"
-                                title={liquidTitle}
-                                note={liquidBand ? liquidNote : marketLoading ? 'haetaan…' : 'ei riittävää näyttöä'}
+                                title={liquidTitle ? t(liquidTitle) : undefined}
+                                note={liquidBand ? liquidNote : marketLoading ? t('haetaan…') : t('ei riittävää näyttöä')}
                             >
                                 {liquidBand
                                     ? <>{fmtEur(liquidBand.lo)}–{fmtEur(liquidBand.hi)}<Unit>€/m²</Unit>{liquidBand.source === 'resale-premium' && EST_CHIP}</>
@@ -831,8 +839,8 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
                             </StatTile>
                             <StatTile
                                 label="Uudisvuokra"
-                                title={rentNew ? `Vuokrapyyntien mediaani ${rentNew.n} ilmoituksesta — ${rentNew.source}` : undefined}
-                                note={rentNew ? `${rentNew.n} kpl · ${rentNew.source}` : compsLoading ? 'haetaan…' : 'ei vuokrailmoituksia'}
+                                title={rentNew ? t('Vuokrapyyntien mediaani {n} ilmoituksesta — {src}', { n: rentNew.n, src: t(rentNew.source) }) : undefined}
+                                note={rentNew ? `${rentNew.n} ${t('kpl')} · ${t(rentNew.source)}` : compsLoading ? t('haetaan…') : t('ei vuokrailmoituksia')}
                             >
                                 {rentNew
                                     ? <>{fmt1(rentNew.med)}<Unit>€/m²/kk</Unit>{rentNew.est && EST_CHIP}</>
@@ -842,8 +850,8 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
                             </StatTile>
                             <StatTile
                                 label="Bruttotuotto uudis"
-                                title="12 × uudisvuokra / kauppaava uudishinta (omistusvertailu)"
-                                note={yieldNew != null ? 'uudisvuokra / kauppaava hinta' : 'vaatii vuokran ja hinnan'}
+                                title={t('12 × uudisvuokra / kauppaava uudishinta (omistusvertailu)')}
+                                note={yieldNew != null ? t('uudisvuokra / kauppaava hinta') : t('vaatii vuokran ja hinnan')}
                             >
                                 {yieldNew != null
                                     ? <span className={yieldNew >= 0.045 ? 'text-green-700' : undefined}>{fmt1(yieldNew * 100)}<Unit>%</Unit>{(rentNew?.est || omaEquivClearing?.est) && EST_CHIP}</span>
@@ -852,7 +860,7 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
                             <StatTile
                                 label="Tontin arvo"
                                 title={PLOT_EXPLAIN}
-                                note={plotOverride != null ? 'oma arvio · palauta kynästä' : plotEstimate ? plotEstimate.source : 'ei arviota — aseta kynästä'}
+                                note={plotOverride != null ? t('oma arvio · palauta kynästä') : plotEstimate ? t(plotEstimate.source) : t('ei arviota — aseta kynästä')}
                                 action={
                                     <button
                                         onClick={() => {
@@ -860,7 +868,7 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
                                             setPlotEditing(!plotEditing);
                                         }}
                                         className={`p-0.5 rounded transition-colors ${plotEditing ? 'text-slate-700 bg-slate-200' : 'text-slate-300 hover:text-slate-600'}`}
-                                        title="Muokkaa tontin arvoa"
+                                        title={t('Muokkaa tontin arvoa')}
                                     >
                                         <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                             <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -883,18 +891,18 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
                                         type="number" min={0} max={5000} step={50} value={plotDraft} autoFocus
                                         onChange={e => setPlotDraft(e.target.value)}
                                         onKeyDown={e => { if (e.key === 'Enter') savePlot(); if (e.key === 'Escape') setPlotEditing(false); }}
-                                        placeholder="esim. 900"
+                                        placeholder={t('esim. 900')}
                                         className="w-20 px-1.5 py-1 text-[12px] font-bold text-right border border-slate-200 rounded bg-white focus:outline-none focus:border-slate-400 tabular-nums"
                                     />
-                                    <span className="text-[10px] text-slate-500 font-medium">€/asunto-m²</span>
-                                    <button onClick={savePlot} className="ml-auto px-2.5 py-1 text-[10px] font-bold rounded bg-slate-900 text-white hover:bg-slate-700">OK</button>
+                                    <span className="text-[10px] text-slate-500 font-medium">{t('€/asunto-m²')}</span>
+                                    <button onClick={savePlot} className="ml-auto px-2.5 py-1 text-[10px] font-bold rounded bg-slate-900 text-white hover:bg-slate-700">{t('OK')}</button>
                                     {plotOverride != null && plotAutoEstimate && (
                                         <button
                                             onClick={() => { setPlotOverride(null); setPlotEditing(false); }}
                                             className="px-2 py-1 text-[10px] font-bold rounded border border-slate-200 text-slate-600 hover:border-slate-300"
-                                            title={`Palauta datasta laskettu arvio ${fmtEur(plotAutoEstimate.value)} €/m² (${plotAutoEstimate.source})`}
+                                            title={t('Palauta datasta laskettu arvio {v} €/m² ({src})', { v: fmtEur(plotAutoEstimate.value), src: t(plotAutoEstimate.source) })}
                                         >
-                                            Palauta
+                                            {t('Palauta')}
                                         </button>
                                     )}
                                 </div>
@@ -906,21 +914,21 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
                         <AnswerRow
                             q="Mitä rakentaa"
                             basis={topProduct && !sthThin
-                                ? `Nopein kierto + suurin kysyntä säteellä${topGap ? ` · huoneistovaje: ${topGap.type}` : ''}`
-                                : infillBuild ? `${infillBuild.basis} — vanhan kannan signaali, ei uudisnäyttöä` : undefined}
+                                ? `${t('Nopein kierto + suurin kysyntä säteellä')}${topGap ? ` · ${t('huoneistovaje: {type}', { type: topGap.type })}` : ''}`
+                                : infillBuild ? t('{basis} — vanhan kannan signaali, ei uudisnäyttöä', { basis: infillBuild.basis }) : undefined}
                         >
-                            {topProduct && !sthThin ? PRODUCT_SHORT[topProduct.class]
-                                : infillBuild ? <>{infillBuild.label}<span className="ml-1 text-[9px] font-bold text-amber-600 align-middle">arvio</span></>
-                                    : marketLoading ? <span className="text-slate-300 animate-pulse">Haetaan…</span>
+                            {topProduct && !sthThin ? t(PRODUCT_SHORT[topProduct.class])
+                                : infillBuild ? <>{t(infillBuild.label)}<span className="ml-1 text-[9px] font-bold text-amber-600 align-middle">{t('arvio')}</span></>
+                                    : marketLoading ? <span className="text-slate-300 animate-pulse">{t('Haetaan…')}</span>
                                         : <span className="text-slate-300">–</span>}
                         </AnswerRow>
                     </div>
 
                     {/* what the answers rest on */}
                     <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[9px] text-slate-400 font-medium -mt-1">
-                        <span>Näyttö: {st.projects === 1 ? '1 uudiskohde' : `${st.projects} uudiskohdetta`} (STH)</span>
-                        {comps && <span>{compStats?.sale.length ?? comps.sale.length} Oikotie-ilmoitusta</span>}
-                        {resalePooled && <span>{resalePooled.sales12mo} toteutunutta kauppaa 12 kk (Tilastokeskus)</span>}
+                        <span>{t('Näyttö: {n} uudiskohdetta (STH)', { n: st.projects })}</span>
+                        {comps && <span>{t('{n} Oikotie-ilmoitusta', { n: compStats?.sale.length ?? comps.sale.length })}</span>}
+                        {resalePooled && <span>{t('{n} toteutunutta kauppaa 12 kk (Tilastokeskus)', { n: resalePooled.sales12mo })}</span>}
                     </div>
 
                     {/* Signals only — caveats, warnings, opportunities. The numbers
@@ -940,16 +948,16 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
                     {ladder.length >= 2 && (
                         <div>
                             <div className="flex items-center justify-between gap-2">
-                                <MicroLabel>{convertLease && !ladderUnconverted ? 'Hintaportaat (€/m², omistusvertailu)' : 'Hintaportaat (€/m²)'}</MicroLabel>
+                                <MicroLabel>{convertLease && !ladderUnconverted ? t('Hintaportaat (€/m², omistusvertailu)') : t('Hintaportaat (€/m²)')}</MicroLabel>
                                 {ladderCanToggle && (
-                                    <div className="flex rounded-full border border-slate-200 overflow-hidden flex-none" title="Näytetäänkö vuokratonttikohteiden hinnat tontin arvolla korotettuina (omistusvertailu) vai sellaisinaan">
+                                    <div className="flex rounded-full border border-slate-200 overflow-hidden flex-none" title={t('Näytetäänkö vuokratonttikohteiden hinnat tontin arvolla korotettuina (omistusvertailu) vai sellaisinaan')}>
                                         {([['oma', 'omistusvertailu'], ['raw', 'ilman tonttia']] as const).map(([id, label]) => (
                                             <button
                                                 key={id}
                                                 onClick={() => setLadderMode(id)}
                                                 className={`px-1.5 py-0.5 text-[8.5px] font-bold transition-colors ${ladderMode === id ? 'bg-slate-900 text-white' : 'bg-white text-slate-500 hover:text-slate-700'}`}
                                             >
-                                                {label}
+                                                {t(label)}
                                             </button>
                                         ))}
                                     </div>
@@ -957,10 +965,10 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
                             </div>
                             <PriceLadder points={ladder} />
                             <div className="text-[9px] text-slate-400 -mt-1 leading-relaxed">
-                                Kauppaava = myyvien uudiskohteiden pyyntimediaani · Seisova = yli 24 kk varasto tai ei kauppoja.
-                                {ladderHasRealized && <> Toteutunut = vanhojen KT-asuntojen toteutuneet kaupat.</>}
-                                {ladderConverted && plotEstimate && <> * sisältää tontin arvon {fmtEur(plotEstimate.value)} €/m² ({plotEstimate.source}).</>}
-                                {ladderUnconverted && <> (vt) = vuokratontti ilman tontin osuutta.</>}
+                                {t('Kauppaava = myyvien uudiskohteiden pyyntimediaani · Seisova = yli 24 kk varasto tai ei kauppoja.')}
+                                {ladderHasRealized && <> {t('Toteutunut = vanhojen KT-asuntojen toteutuneet kaupat.')}</>}
+                                {ladderConverted && plotEstimate && <> {t('* sisältää tontin arvon {v} €/m² ({src}).', { v: fmtEur(plotEstimate.value), src: t(plotEstimate.source) })}</>}
+                                {ladderUnconverted && <> {t('(vt) = vuokratontti ilman tontin osuutta.')}</>}
                             </div>
                         </div>
                     )}
@@ -970,22 +978,22 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
                         <div>
                             <div className="flex items-center justify-between gap-2 bg-slate-50 rounded-lg px-2.5 py-2">
                                 <span className="text-[10.5px] text-slate-600 flex items-center flex-wrap">
-                                    Jos rakennat
+                                    {t('Jos rakennat')}
                                     <input
                                         type="number" min={1} max={500} value={unitCount}
                                         onChange={e => setUnitCount(Math.min(500, Math.max(1, parseInt(e.target.value) || 1)))}
                                         className="w-12 mx-1.5 px-1 py-0.5 text-[11px] font-bold text-center border border-slate-200 rounded bg-white focus:outline-none focus:border-slate-400"
                                     />
-                                    as. — myyntiaika
+                                    {t('as. — myyntiaika')}
                                 </span>
                                 <span className="text-[13px] font-extrabold tabular-nums flex-none" style={{ color: miColor(sellout) }}>
-                                    {sellout > 48 ? `≈ ${Math.round(sellout / 12)} v` : `≈ ${sellout} kk`}
+                                    {sellout > 48 ? t('≈ {n} v', { n: Math.round(sellout / 12) }) : t('≈ {n} kk', { n: sellout })}
                                 </span>
                             </div>
                             <div className="text-[9px] text-slate-400 mt-1">
-                                Karkea arvio: {PRODUCT_SHORT[topProduct.class].toLowerCase()}-kysyntä 12 kk jaettuna nykyisen tarjonnan ({topProduct.forSale} as.) ja kohteesi kesken.
+                                {t('Karkea arvio: {prod}-kysyntä 12 kk jaettuna nykyisen tarjonnan ({n} as.) ja kohteesi kesken.', { prod: t(PRODUCT_SHORT[topProduct.class]).toLowerCase(), n: topProduct.forSale })}
                                 {sthThin && (
-                                    <b className="text-amber-600"> Ohut näyttö ({nKohdetta(st.projects)}) — tahti tulee säteen {PRODUCT_SHORT[topProduct.class].toLowerCase()}-kohteista{infillBuild && !infillBuild.label.startsWith(PRODUCT_SHORT[topProduct.class].split(' ')[0]) ? ', ei yllä suositellusta tuotteesta' : ''} — suuntaa-antava.</b>
+                                    <b className="text-amber-600"> {t('Ohut näyttö ({k}) — tahti tulee säteen {prod}-kohteista{extra} — suuntaa-antava.', { k: nKohdetta(st.projects), prod: t(PRODUCT_SHORT[topProduct.class]).toLowerCase(), extra: infillBuild && !infillBuild.label.startsWith(PRODUCT_SHORT[topProduct.class].split(' ')[0]) ? t(', ei yllä suositellusta tuotteesta') : '' })}</b>
                                 )}
                             </div>
                         </div>
@@ -995,11 +1003,11 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
                     {hot != null && (
                         <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
                             <span className="w-2 h-2 rounded-full flex-none" style={{ background: hotColor(hot) }} />
-                            Postinumeroalueen kuumuus <b>{hot}/100</b>
+                            {t('Postinumeroalueen kuumuus')} <b>{hot}/100</b>
                         </div>
                     )}
                     {areaStat?.lowConfidence && areaStat?.hotnessParts && (
-                        <div className="text-[9.5px] text-amber-600 font-medium mt-2">⚠ Vähän kohteita postinumeroalueella — tulkitse pisteitä varoen</div>
+                        <div className="text-[9.5px] text-amber-600 font-medium mt-2">{t('⚠ Vähän kohteita postinumeroalueella — tulkitse pisteitä varoen')}</div>
                     )}
                     {areaStat?.hotnessParts && (
                         <div className="mt-2">
@@ -1015,7 +1023,7 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
                                         { label: 'Hintavakaus', v: areaStat.hotnessParts.paine },
                                     ].map(row => (
                                         <div key={row.label} className="flex items-center gap-2">
-                                            <span className="text-[9.5px] text-slate-500 w-[120px] flex-none leading-tight">{row.label}</span>
+                                            <span className="text-[9.5px] text-slate-500 w-[120px] flex-none leading-tight">{t(row.label)}</span>
                                             <div className="flex-1 h-[5px] bg-slate-100 rounded-full overflow-hidden">
                                                 <div className="h-full rounded-full bg-slate-700" style={{ width: `${row.v}%` }} />
                                             </div>
@@ -1029,9 +1037,9 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
                 </div>
 
                 {/* What to build — the evidence behind the "Rakenna" answer */}
-                <Section title="Mitä tähän kannattaa rakentaa?" defaultOpen={false}>
+                <Section title={t('Mitä tähän kannattaa rakentaa?')} defaultOpen={false}>
                     {a.products.length === 0 ? (
-                        <div className="text-[11.5px] text-slate-400">Ei vertailukohteita säteellä — laajenna sädettä.</div>
+                        <div className="text-[11.5px] text-slate-400">{t('Ei vertailukohteita säteellä — laajenna sädettä.')}</div>
                     ) : (
                         <div className="space-y-1.5">
                             {(() => {
@@ -1040,15 +1048,15 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
                                     <div className="rounded-xl border border-green-200 bg-green-50 px-3 py-2.5">
                                         <div className="flex items-center justify-between gap-2">
                                             <div className="min-w-0">
-                                                <div className="text-[9px] font-bold uppercase tracking-[0.07em] text-green-700">Suositus</div>
-                                                <div className="text-[13px] font-bold leading-tight truncate">{top.label}</div>
+                                                <div className="text-[9px] font-bold uppercase tracking-[0.07em] text-green-700">{t('Suositus')}</div>
+                                                <div className="text-[13px] font-bold leading-tight truncate">{t(top.label)}</div>
                                             </div>
                                             <MonthsChip mi={top.monthsInventory} />
                                         </div>
                                         <div className="text-[10.5px] text-slate-600 mt-1">
                                             {top.sold12} myyty 12 kk · {top.forSale} myynnissä
-                                            {top.medEurM2Own != null && <> · oma tontti <b>{fmtEur(top.medEurM2Own)} €/m²</b></>}
-                                            {top.medEurM2Lease != null && <> · vuokratontti <b>{fmtEur(top.medEurM2Lease)} €/m²</b></>}
+                                            {top.medEurM2Own != null && <> {t('· oma tontti')} <b>{fmtEur(top.medEurM2Own)} €/m²</b></>}
+                                            {top.medEurM2Lease != null && <> {t('· vuokratontti')} <b>{fmtEur(top.medEurM2Lease)} €/m²</b></>}
                                         </div>
                                         {topGap && (
                                             <div className="text-[10.5px] font-semibold text-green-800 mt-1">
@@ -1062,7 +1070,7 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
                                 <div key={pr.class} className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 bg-slate-50">
                                     <span className="w-5 h-5 rounded-full flex-none flex items-center justify-center text-[10px] font-extrabold bg-slate-200 text-slate-600">{i + 2}</span>
                                     <div className="flex-1 min-w-0">
-                                        <div className="text-[11.5px] font-bold truncate">{pr.label}</div>
+                                        <div className="text-[11.5px] font-bold truncate">{t(pr.label)}</div>
                                         <div className="text-[10px] text-slate-500">
                                             {pr.sold12} myyty 12 kk · {pr.forSale} myynnissä
                                             {pr.medEurM2Own != null && <> · oma {fmtEur(pr.medEurM2Own)} €/m²</>}
@@ -1072,43 +1080,43 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
                                     <MonthsChip mi={pr.monthsInventory} />
                                 </div>
                             ))}
-                            <div className="text-[9.5px] text-slate-400 pt-0.5">Järjestys: kysyntä + varaston kiertonopeus säteellä. Kuukausiluku = myyntivaraston kesto.</div>
+                            <div className="text-[9.5px] text-slate-400 pt-0.5">{t('Järjestys: kysyntä + varaston kiertonopeus säteellä. Kuukausiluku = myyntivaraston kesto.')}</div>
                         </div>
                     )}
                 </Section>
 
                 {/* Market situation in radius */}
-                <Section title={`Markkinatilanne · ${String(radiusKm).replace('.', ',')} km`} defaultOpen={false} badge={<span className="text-[10px] text-slate-400 font-semibold">{nKohdetta(st.projects)}</span>}>
+                <Section title={t('Markkinatilanne · {r} km', { r: String(radiusKm).replace('.', ',') })} defaultOpen={false} badge={<span className="text-[10px] text-slate-400 font-semibold">{nKohdetta(st.projects)}</span>}>
                     {st.projects === 0 ? (
-                        <div className="text-[11.5px] text-slate-400">Ei STH-seurattuja uudiskohteita säteellä.</div>
+                        <div className="text-[11.5px] text-slate-400">{t('Ei STH-seurattuja uudiskohteita säteellä.')}</div>
                     ) : (
                         <>
                             <div className="grid grid-cols-4 gap-1.5 mb-2.5">
                                 <div className="bg-slate-50 rounded-lg px-1.5 py-1.5 text-center">
                                     <div className="text-[12.5px] font-bold tabular-nums">{st.units.toFixed(0)}</div>
-                                    <MicroLabel>Asuntoa</MicroLabel>
+                                    <MicroLabel>{t('Asuntoa')}</MicroLabel>
                                 </div>
                                 <div className="bg-slate-50 rounded-lg px-1.5 py-1.5 text-center">
                                     <div className="text-[12.5px] font-bold tabular-nums">{st.sold12.toFixed(0)}</div>
-                                    <MicroLabel>Myyty 12 kk</MicroLabel>
+                                    <MicroLabel>{t('Myyty 12 kk')}</MicroLabel>
                                 </div>
                                 <div className="bg-slate-50 rounded-lg px-1.5 py-1.5 text-center">
                                     <div className="text-[12.5px] font-bold tabular-nums" style={{ color: miColor(st.monthsInventory) }}>{formatMonthsInv(st.monthsInventory)}</div>
-                                    <MicroLabel>Varasto kk</MicroLabel>
+                                    <MicroLabel>{t('Varasto kk')}</MicroLabel>
                                 </div>
                                 <div className="bg-slate-50 rounded-lg px-1.5 py-1.5 text-center">
                                     <div className="text-[12.5px] font-bold tabular-nums">{st.forSale.toFixed(0)}</div>
-                                    <MicroLabel>Myynnissä</MicroLabel>
+                                    <MicroLabel>{t('Myynnissä')}</MicroLabel>
                                 </div>
                             </div>
                             <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-600">
                                 {st.momentum != null && (
-                                    <span>Momentum <b className={st.momentum >= 1 ? 'text-green-700' : 'text-red-700'}>
+                                    <span>{t('Momentum')} <b className={st.momentum >= 1 ? 'text-green-700' : 'text-red-700'}>
                                         {st.momentum >= 1 ? '▲' : '▼'} {Math.round(Math.abs(st.momentum - 1) * 100)} %
                                     </b></span>
                                 )}
                                 {st.hasDelta && <span>Kauppoja {formatSnapshot(dataset.prevSnapshot || 0)} jälkeen: <b>{st.deltaSold}</b></span>}
-                                {st.cutShare > 0 && <span>Hinnanalennuksia <b>{Math.round(st.cutShare * 100)} %</b> kohteista</span>}
+                                {st.cutShare > 0 && <span>{t('Hinnanalennuksia')} <b>{Math.round(st.cutShare * 100)} %</b> kohteista</span>}
                             </div>
                         </>
                     )}
@@ -1116,7 +1124,7 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
 
                 {/* Reference buildings: the STH projects the numbers come from */}
                 {a.nearby.length > 0 && (
-                    <Section title="Vertailukohteet" defaultOpen={false} badge={<span className="text-[10px] text-slate-400 font-semibold">{a.nearby.length}</span>}>
+                    <Section title={t('Vertailukohteet')} defaultOpen={false} badge={<span className="text-[10px] text-slate-400 font-semibold">{a.nearby.length}</span>}>
                         <div className="space-y-1.5">
                             {a.nearby.slice(0, 20).map(({ project: p, distanceKm }) => {
                                 const grade = gradeProject(p);
@@ -1128,10 +1136,10 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
                                 return (
                                     <div key={p.key} className="rounded-lg bg-slate-50 px-2 py-1.5">
                                         <div className="flex items-center gap-1.5">
-                                            <span className="w-2 h-2 rounded-full flex-none" style={{ background: grade.color }} title={grade.label} />
+                                            <span className="w-2 h-2 rounded-full flex-none" style={{ background: grade.color }} title={t(grade.label)} />
                                             <span className="text-[11px] font-bold truncate flex-1">{p.name.replace(/^As\.?\s?Oy\s?(Helsingin|Espoon|Vantaan)?\s?/i, '')}</span>
                                             {p.eurM2 > 0 && <span className="text-[11px] font-bold tabular-nums flex-none">{fmtEur(p.eurM2)} €/m²</span>}
-                                            <span className="text-[8.5px] font-bold px-1 py-px rounded flex-none" style={tenureChip.style}>{tenureChip.label}</span>
+                                            <span className="text-[8.5px] font-bold px-1 py-px rounded flex-none" style={tenureChip.style}>{t(tenureChip.label)}</span>
                                         </div>
                                         <div className="text-[9.5px] text-slate-500 mt-0.5 pl-3.5 truncate">
                                             {p.builder && p.builder !== 'Ei ole tiedossa' ? `${p.builder} · ` : ''}
@@ -1148,7 +1156,7 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
                             })}
                             {a.nearby.length > 20 && <div className="text-[10px] text-slate-400">+ {a.nearby.length - 20} muuta säteellä</div>}
                             <div className="text-[9.5px] text-slate-400 pt-0.5">
-                                Analyysin luvut lasketaan näistä kohteista. Kytke Uudiskohteet (STH) -taso nähdäksesi ne kartalla.
+                                {t('Analyysin luvut lasketaan näistä kohteista. Kytke Uudiskohteet (STH) -taso nähdäksesi ne kartalla.')}
                             </div>
                         </div>
                     </Section>
@@ -1157,10 +1165,10 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
                 {/* Movers vs stalled: what separates stock that sells from stock that sits */}
                 {cmp && (
                     <Section
-                        title="Miksi jotkin kohteet myyvät?"
+                        title={t('Miksi jotkin kohteet myyvät?')}
                         defaultOpen={false}
                         badge={cmp.inverted
-                            ? <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">hinta ei selitä</span>
+                            ? <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700">{t('hinta ei selitä')}</span>
                             : <span className="text-[10px] text-slate-400 font-semibold">{cmp.movers.length} myy · {cmp.stalled.length} seisoo</span>}
                     >
                         <div className="space-y-2">
@@ -1168,17 +1176,17 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
                                 <div className="rounded-lg bg-green-50 border border-green-100 px-2 py-1.5">
                                     <div className="text-[9px] font-bold uppercase tracking-[0.07em] text-green-700">Myyvät ({cmp.movers.length})</div>
                                     <div className="text-[10.5px] text-slate-700 mt-0.5 leading-snug">
-                                        {cmp.m.medEurM2Own != null && <div>oma tontti <b className="tabular-nums">{fmtEur(cmp.m.medEurM2Own)} €/m²</b></div>}
+                                        {cmp.m.medEurM2Own != null && <div>{t('oma tontti')} <b className="tabular-nums">{fmtEur(cmp.m.medEurM2Own)} €/m²</b></div>}
                                         {cmp.m.medEurM2Lease != null && <div>vuokratontti <b className="tabular-nums">{fmtEur(cmp.m.medEurM2Lease)} €/m²</b></div>}
-                                        {cmp.m.medAvgSize != null && <div>asunnot ka. <b>{Math.round(cmp.m.medAvgSize)} m²</b>{cmp.m.medUnits != null && <> · md {Math.round(cmp.m.medUnits)} as./kohde</>}</div>}
+                                        {cmp.m.medAvgSize != null && <div>{t('asunnot ka.')} <b>{Math.round(cmp.m.medAvgSize)} m²</b>{cmp.m.medUnits != null && <> · md {Math.round(cmp.m.medUnits)} as./kohde</>}</div>}
                                     </div>
                                 </div>
                                 <div className="rounded-lg bg-red-50 border border-red-100 px-2 py-1.5">
                                     <div className="text-[9px] font-bold uppercase tracking-[0.07em] text-red-700">Seisovat ({cmp.stalled.length})</div>
                                     <div className="text-[10.5px] text-slate-700 mt-0.5 leading-snug">
-                                        {cmp.s.medEurM2Own != null && <div>oma tontti <b className="tabular-nums">{fmtEur(cmp.s.medEurM2Own)} €/m²</b></div>}
+                                        {cmp.s.medEurM2Own != null && <div>{t('oma tontti')} <b className="tabular-nums">{fmtEur(cmp.s.medEurM2Own)} €/m²</b></div>}
                                         {cmp.s.medEurM2Lease != null && <div>vuokratontti <b className="tabular-nums">{fmtEur(cmp.s.medEurM2Lease)} €/m²</b></div>}
-                                        {cmp.s.medAvgSize != null && <div>asunnot ka. <b>{Math.round(cmp.s.medAvgSize)} m²</b>{cmp.s.medUnits != null && <> · md {Math.round(cmp.s.medUnits)} as./kohde</>}</div>}
+                                        {cmp.s.medAvgSize != null && <div>{t('asunnot ka.')} <b>{Math.round(cmp.s.medAvgSize)} m²</b>{cmp.s.medUnits != null && <> · md {Math.round(cmp.s.medUnits)} as./kohde</>}</div>}
                                     </div>
                                 </div>
                             </div>
@@ -1186,18 +1194,18 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
                                 {cmp.reasons.map((r, i) => (
                                     <div key={i} className="flex items-start gap-1.5">
                                         <span className="w-1.5 h-1.5 rounded-full flex-none mt-[5px] bg-slate-400" />
-                                        <span className="text-[10.5px] leading-snug text-slate-700">{r}</span>
+                                        <span className="text-[10.5px] leading-snug text-slate-700">{t(r.fi, r.vars)}</span>
                                     </div>
                                 ))}
                                 {cmp.reasons.length === 0 && (
                                     <div className="text-[10.5px] text-slate-400">
-                                        Ryhmät ovat liian pieniä tai samankaltaisia selkeään erittelyyn{scatterEligible(radiusProjects).length >= 3 ? ' — katso hajontakuva' : ''}.
+                                        {t('Ryhmät ovat liian pieniä tai samankaltaisia selkeään erittelyyn')}{scatterEligible(radiusProjects).length >= 3 ? t(' — katso hajontakuva') : ''}.
                                     </div>
                                 )}
                             </div>
                             {scatterEligible(radiusProjects).length >= 3 && (
                                 <div>
-                                    <MicroLabel>Hinta vs. kiertonopeus — jokainen piste on kohde</MicroLabel>
+                                    <MicroLabel>{t('Hinta vs. kiertonopeus — jokainen piste on kohde')}</MicroLabel>
                                     <AbsorptionScatter projects={radiusProjects} />
                                     <div className="text-[9px] text-slate-400 leading-relaxed mt-0.5">
                                         Täytetty piste = oma tai sekamuotoinen tontti · rengas = vuokratontti (hinta ilman tonttia) ·
@@ -1210,53 +1218,53 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
                 )}
 
                 {/* Price level — the evidence behind the ladder */}
-                <Section title="Hintataso" defaultOpen={false}>
+                <Section title={t('Hintataso')} defaultOpen={false}>
                     <div className="space-y-1.5">
                         {/* owned-plot and leasehold prices are separate markets — never pooled */}
                         {a.clearingPrice.oma && (
                             <div className="flex items-baseline justify-between">
-                                <span className="text-[11.5px] text-slate-600">Kauppaava uudishinta · <b>oma tontti</b> <span className="text-slate-400">({a.clearingPrice.oma.n} kohd.)</span></span>
+                                <span className="text-[11.5px] text-slate-600">{t('Kauppaava uudishinta ·')} <b>{t('oma tontti')}</b> <span className="text-slate-400">({a.clearingPrice.oma.n} kohd.)</span></span>
                                 <span className="text-[13px] font-bold text-green-700 tabular-nums">{fmtEur(a.clearingPrice.oma.value)} €/m²</span>
                             </div>
                         )}
                         {a.clearingPrice.vuokra && (
                             <div className="flex items-baseline justify-between">
-                                <span className="text-[11.5px] text-slate-600">Kauppaava · <b>vuokratontti</b> <span className="text-slate-400">({a.clearingPrice.vuokra.n} kohd., ilman tonttia)</span></span>
+                                <span className="text-[11.5px] text-slate-600">{t('Kauppaava ·')} <b>vuokratontti</b> <span className="text-slate-400">({a.clearingPrice.vuokra.n} kohd., ilman tonttia)</span></span>
                                 <span className="text-[13px] font-bold text-green-700 tabular-nums">{fmtEur(a.clearingPrice.vuokra.value)} €/m²</span>
                             </div>
                         )}
                         {a.stalledPrice.oma && (
                             <div className="flex items-baseline justify-between">
-                                <span className="text-[11.5px] text-slate-600">Seisova pyynti · oma tontti <span className="text-slate-400">({a.stalledPrice.oma.n} kohd.)</span></span>
+                                <span className="text-[11.5px] text-slate-600">{t('Seisova pyynti · oma tontti')} <span className="text-slate-400">({a.stalledPrice.oma.n} kohd.)</span></span>
                                 <span className="text-[13px] font-bold text-red-600 tabular-nums">{fmtEur(a.stalledPrice.oma.value)} €/m²</span>
                             </div>
                         )}
                         {a.stalledPrice.vuokra && (
                             <div className="flex items-baseline justify-between">
-                                <span className="text-[11.5px] text-slate-600">Seisova pyynti · vuokratontti <span className="text-slate-400">({a.stalledPrice.vuokra.n} kohd.)</span></span>
+                                <span className="text-[11.5px] text-slate-600">{t('Seisova pyynti · vuokratontti')} <span className="text-slate-400">({a.stalledPrice.vuokra.n} kohd.)</span></span>
                                 <span className="text-[13px] font-bold text-red-600 tabular-nums">{fmtEur(a.stalledPrice.vuokra.value)} €/m²</span>
                             </div>
                         )}
-                        {!hasClearing && !hasStalled && <div className="text-[11.5px] text-slate-400">Ei riittävästi uudiskohteita hinta-arvioon.</div>}
+                        {!hasClearing && !hasStalled && <div className="text-[11.5px] text-slate-400">{t('Ei riittävästi uudiskohteita hinta-arvioon.')}</div>}
                         {(hasClearing || hasStalled) && (
                             <div className="text-[9px] text-slate-400">
-                                Kauppaava ja seisova ovat eri kohteita — hyvä tuote voi pyytää enemmän ja silti myydä.
+                                {t('Kauppaava ja seisova ovat eri kohteita — hyvä tuote voi pyytää enemmän ja silti myydä.')}
                             </div>
                         )}
                         {plotEstimate && (a.clearingPrice.vuokra || a.stalledPrice.vuokra) && (
                             <div className="text-[10px] text-slate-500 bg-slate-50 rounded px-1.5 py-1">
-                                Tontin arvo <b>{fmtEur(plotEstimate.value)} €/m²</b> ({plotEstimate.source})
-                                {a.clearingPrice.vuokra && <> → kauppaava vt omistusvertailuna ≈ <b>{fmtEur(a.clearingPrice.vuokra.value + plotEstimate.value)} €/m²</b></>}
+                                {t('Tontin arvo')} <b>{fmtEur(plotEstimate.value)} €/m²</b> ({t(plotEstimate.source)})
+                                {a.clearingPrice.vuokra && <> {t('→ kauppaava vt omistusvertailuna ≈')} <b>{fmtEur(a.clearingPrice.vuokra.value + plotEstimate.value)} €/m²</b></>}
                             </div>
                         )}
 
                         {(compsLoading || compsError || compStats) && (
                             <>
                                 <div className="border-t border-slate-100 my-1.5" />
-                                <MicroLabel>Oikotie · myynnissä nyt (€/m², mediaani)</MicroLabel>
+                                <MicroLabel>{t('Oikotie · myynnissä nyt (€/m², mediaani)')}</MicroLabel>
                             </>
                         )}
-                        {compsLoading && <div className="text-[11px] text-slate-400 py-1">Haetaan Oikotiestä…</div>}
+                        {compsLoading && <div className="text-[11px] text-slate-400 py-1">{t('Haetaan Oikotiestä…')}</div>}
                         {compsError && <div className="text-[11px] text-red-500 py-1">Oikotie-haku epäonnistui — yritä hetken päästä uudelleen.</div>}
                         {compStats && (
                             <div className="grid grid-cols-3 gap-1.5 mt-1">
@@ -1267,15 +1275,15 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
                                 ].map(b => (
                                     <div key={b.label} className="bg-slate-50 rounded-lg px-1.5 py-1.5 text-center">
                                         <div className="text-[12px] font-bold tabular-nums">{b.d.med ? fmtEur(b.d.med) : '–'}</div>
-                                        <MicroLabel>{b.label} ({b.d.n})</MicroLabel>
+                                        <MicroLabel>{t(b.label)} ({b.d.n})</MicroLabel>
                                     </div>
                                 ))}
                             </div>
                         )}
                         {premium != null && (
                             <div className={`text-[11px] mt-1 ${premium > 0.55 ? 'text-red-600' : 'text-slate-600'}`}>
-                                Uudishinnan preemio vanhaan kantaan <span className="text-slate-400">({omaEquivClearing?.est ? 'omistusvertailu' : 'oma tontti'}, vs. {premiumVsRealized ? 'toteutuneet' : 'pyynnit'})</span>: <b>{premium >= 0 ? '+' : ''}{Math.round(premium * 100)} %</b>
-                                {premium > 0.55 && ' — korkea preemio hidastaa myyntiä'}
+                                {t('Uudishinnan preemio vanhaan kantaan')} <span className="text-slate-400">({omaEquivClearing?.est ? t('omistusvertailu') : t('oma tontti')}, vs. {premiumVsRealized ? t('toteutuneet') : t('pyynnit')})</span>: <b>{premium >= 0 ? '+' : ''}{Math.round(premium * 100)} %</b>
+                                {premium > 0.55 && t(' — korkea preemio hidastaa myyntiä')}
                             </div>
                         )}
                         {compStats && compStats.rentAll.n > 0 && (
@@ -1290,7 +1298,7 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
                                     ].map(b => (
                                         <div key={b.label} className="bg-slate-50 rounded-lg px-1.5 py-1.5 text-center">
                                             <div className="text-[12px] font-bold tabular-nums">{b.d.med ? fmt1(b.d.med) : '–'}</div>
-                                            <MicroLabel>{b.label} ({b.d.n})</MicroLabel>
+                                            <MicroLabel>{t(b.label)} ({b.d.n})</MicroLabel>
                                         </div>
                                     ))}
                                 </div>
@@ -1299,8 +1307,8 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
                                 </div>
                                 {(yieldOld != null || yieldNew != null) && (
                                     <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-[11px] text-slate-600 mt-1">
-                                        {yieldNew != null && <span>Bruttotuotto uudet: <b className={yieldNew >= 0.045 ? 'text-green-700' : undefined}>{fmt1(yieldNew * 100)} %</b></span>}
-                                        {yieldOld != null && <span>vanhat: <b>{fmt1(yieldOld * 100)} %</b></span>}
+                                        {yieldNew != null && <span>{t('Bruttotuotto uudet:')} <b className={yieldNew >= 0.045 ? 'text-green-700' : undefined}>{fmt1(yieldNew * 100)} %</b></span>}
+                                        {yieldOld != null && <span>{t('vanhat:')} <b>{fmt1(yieldOld * 100)} %</b></span>}
                                     </div>
                                 )}
                             </>
@@ -1309,14 +1317,14 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
                         {bandStats && bandStats.some(b => b.oldMed != null || b.newMed != null) && (
                             <>
                                 <div className="border-t border-slate-100 my-1.5" />
-                                <MicroLabel>Hinta kokoluokittain (€/m², mediaani)</MicroLabel>
+                                <MicroLabel>{t('Hinta kokoluokittain (€/m², mediaani)')}</MicroLabel>
                                 <div className="mt-1 space-y-0.5">
                                     <div className="grid grid-cols-[42px_1fr_1fr_50px_44px] gap-1 text-[8.5px] font-bold uppercase tracking-wide text-slate-400">
                                         <span>m²</span>
-                                        <span className="text-right">Vanhat</span>
-                                        <span className="text-right">Uudet</span>
-                                        <span className="text-right">Preemio</span>
-                                        <span className="text-right">Tuotto</span>
+                                        <span className="text-right">{t('Vanhat')}</span>
+                                        <span className="text-right">{t('Uudet')}</span>
+                                        <span className="text-right">{t('Preemio')}</span>
+                                        <span className="text-right">{t('Tuotto')}</span>
                                     </div>
                                     {bandStats.map(b => (
                                         <div key={b.id} className="grid grid-cols-[42px_1fr_1fr_50px_44px] gap-1 text-[10.5px] tabular-nums items-baseline">
@@ -1333,11 +1341,11 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
                                     ))}
                                 </div>
                                 <div className="text-[9px] text-slate-400 mt-0.5">
-                                    Tuotto = bruttotuotto uudishintaan alueen vuokrapyynnöistä — vihreä ≥ 4,5 % vetää sijoittajia.
+                                    {t('Tuotto = bruttotuotto uudishintaan alueen vuokrapyynnöistä — vihreä ≥ 4,5 % vetää sijoittajia.')}
                                 </div>
                                 {oldP25 != null && oldP75 != null && (
                                     <div className="text-[10px] text-slate-500 mt-1">
-                                        Vanhan kannan hajonta: <b>{fmtEur(oldP25)}–{fmtEur(oldP75)} €/m²</b> <span className="text-slate-400">(p25–p75{oldP75 / oldP25 > 1.45 ? ' — laaja: sijainti ja kunto ratkaisevat' : ''})</span>
+                                        {t('Vanhan kannan hajonta:')} <b>{fmtEur(oldP25)}–{fmtEur(oldP75)} €/m²</b> <span className="text-slate-400">(p25–p75{oldP75 / oldP25 > 1.45 ? ' — laaja: sijainti ja kunto ratkaisevat' : ''})</span>
                                     </div>
                                 )}
                             </>
@@ -1360,12 +1368,12 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
                                                     onClick={() => setListingBucket(b.id)}
                                                     className={`px-2 py-0.5 text-[10px] font-semibold rounded-full border transition-all ${listingBucket === b.id ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}
                                                 >
-                                                    {b.label} ({compStats[b.id].n})
+                                                    {t(b.label)} ({compStats[b.id].n})
                                                 </button>
                                             ))}
                                         </div>
                                         <div className="space-y-1 mt-1.5">
-                                            {bucketListings.length === 0 && <div className="text-[10.5px] text-slate-400">Ei ilmoituksia tässä ryhmässä.</div>}
+                                            {bucketListings.length === 0 && <div className="text-[10.5px] text-slate-400">{t('Ei ilmoituksia tässä ryhmässä.')}</div>}
                                             {bucketListings.slice(0, 12).map(l => {
                                                 const d = listingDist(l);
                                                 return (
@@ -1375,9 +1383,9 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
                                                             {l.address || l.district}
                                                             <span className="text-slate-400"> · {l.year || '–'} · {l.sizeM2} m²{l.roomConfig ? ` · ${l.roomConfig}` : ''}{d != null ? ` · ${fmtKm(d)}` : ''}</span>
                                                             {l.daysOnMarket != null && (
-                                                                <span className={l.daysOnMarket > 90 ? 'text-red-500' : 'text-slate-400'}> · {l.daysOnMarket} vrk</span>
+                                                                <span className={l.daysOnMarket > 90 ? 'text-red-500' : 'text-slate-400'}> · {t('{n} vrk', { n: l.daysOnMarket })}</span>
                                                             )}
-                                                            {l.priceCut && <span className="text-amber-600 font-semibold"> ↓hinta</span>}
+                                                            {l.priceCut && <span className="text-amber-600 font-semibold"> {t('↓hinta')}</span>}
                                                         </span>
                                                         <span className="font-bold tabular-nums flex-none">{fmtEur(l.eurM2)} €/m²</span>
                                                     </a>
@@ -1396,50 +1404,50 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
                     In infill areas with little new construction this is the primary evidence. */}
                 {(resalePooled || (resaleLiq && resaleLiq.n > 0)) && (
                     <Section
-                        title="Vanha kanta & likviditeetti"
+                        title={t('Vanha kanta & likviditeetti')}
                         defaultOpen={sthThin}
                         badge={resaleGrade
-                            ? <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full text-white" style={{ background: LIQUIDITY_COLOR[resaleGrade] }}>{LIQUIDITY_LABEL[resaleGrade]}</span>
+                            ? <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full text-white" style={{ background: LIQUIDITY_COLOR[resaleGrade] }}>{t(LIQUIDITY_LABEL[resaleGrade])}</span>
                             : undefined}
                     >
                         <div className="space-y-2">
                             <div className="grid grid-cols-4 gap-1.5">
                                 <div className="bg-slate-50 rounded-lg px-1 py-1.5 text-center">
                                     <div className="text-[12.5px] font-bold tabular-nums">{resalePooled ? resalePooled.sales12mo : '–'}</div>
-                                    <MicroLabel>Kauppaa 12 kk</MicroLabel>
+                                    <MicroLabel>{t('Kauppaa 12 kk')}</MicroLabel>
                                 </div>
                                 <div className="bg-slate-50 rounded-lg px-1 py-1.5 text-center">
                                     <div className="text-[12.5px] font-bold tabular-nums" style={{ color: resaleLiq?.monthsInventory != null ? miColor(resaleLiq.monthsInventory) : undefined }}>
                                         {resaleLiq?.monthsInventory != null ? formatMonthsInv(resaleLiq.monthsInventory) : '–'}
                                     </div>
-                                    <MicroLabel>Varasto kk (KT)</MicroLabel>
+                                    <MicroLabel>{t('Varasto kk (KT)')}</MicroLabel>
                                 </div>
                                 <div className="bg-slate-50 rounded-lg px-1 py-1.5 text-center">
                                     <div className="text-[12.5px] font-bold tabular-nums">{resaleLiq?.domMedian != null ? Math.round(resaleLiq.domMedian) : '–'}</div>
-                                    <MicroLabel>Ilm. ikä md vrk</MicroLabel>
+                                    <MicroLabel>{t('Ilm. ikä md vrk')}</MicroLabel>
                                 </div>
                                 <div className="bg-slate-50 rounded-lg px-1 py-1.5 text-center">
                                     <div className="text-[12.5px] font-bold tabular-nums">{resalePooled?.ktEurM2 != null ? fmtEur(resalePooled.ktEurM2) : '–'}</div>
-                                    <MicroLabel>Tot. KT €/m²</MicroLabel>
+                                    <MicroLabel>{t('Tot. KT €/m²')}</MicroLabel>
                                 </div>
                             </div>
 
                             {resalePooled && resalePooled.quarters.some(q => q.count > 0) && (
                                 <div>
-                                    <MicroLabel>Toteutuneet kaupat / neljännes (Tilastokeskus)</MicroLabel>
+                                    <MicroLabel>{t('Toteutuneet kaupat / neljännes (Tilastokeskus)')}</MicroLabel>
                                     <QuarterBars quarters={resalePooled.quarters} />
-                                    <div className="text-[9px] text-slate-400 -mt-1">* uusin neljännes on ennakkotieto ja täydentyy vielä</div>
+                                    <div className="text-[9px] text-slate-400 -mt-1">{t('* uusin neljännes on ennakkotieto ja täydentyy vielä')}</div>
                                 </div>
                             )}
 
                             {resalePooled && resalePooled.prices.length > 0 && (
                                 <div className="space-y-0.5">
-                                    <MicroLabel>Toteutuneet hinnat tyypeittäin (Tilastokeskus)</MicroLabel>
+                                    <MicroLabel>{t('Toteutuneet hinnat tyypeittäin (Tilastokeskus)')}</MicroLabel>
                                     {resalePooled.prices.map(p => (
                                         <div key={p.id} className="flex items-baseline justify-between text-[11px]">
                                             <span className="text-slate-500 font-medium">
-                                                {p.label} <span className="text-slate-300">({p.n} kauppaa)</span>
-                                                {p.source === 'annual' && <span className="text-[8.5px] font-bold text-amber-600 ml-1">vuositaso</span>}
+                                                {t(p.label)} <span className="text-slate-300">({t('{n} kauppaa', { n: p.n })})</span>
+                                                {p.source === 'annual' && <span className="text-[8.5px] font-bold text-amber-600 ml-1">{t('vuositaso')}</span>}
                                             </span>
                                             <span className="font-bold tabular-nums">{fmtEur(p.eurM2)} €/m²</span>
                                         </div>
@@ -1450,34 +1458,34 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
                             {(askVsRealized != null || resalePooled?.trendPct != null || resaleLiq?.turnoverPct != null) && (
                                 <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-[10.5px] text-slate-600">
                                     {askVsRealized != null && (
-                                        <span>Pyynnit vs. toteutuneet <b className={askVsRealized > 0.15 ? 'text-red-600' : 'text-slate-700'}>{askVsRealized >= 0 ? '+' : ''}{Math.round(askVsRealized * 100)} %</b></span>
+                                        <span>{t('Pyynnit vs. toteutuneet')} <b className={askVsRealized > 0.15 ? 'text-red-600' : 'text-slate-700'}>{askVsRealized >= 0 ? '+' : ''}{Math.round(askVsRealized * 100)} %</b></span>
                                     )}
                                     {resalePooled?.trendPct != null && (
-                                        <span>Hinta 12 kk <b className={resalePooled.trendPct >= 0 ? 'text-green-700' : 'text-red-600'}>{resalePooled.trendPct >= 0 ? '+' : ''}{resalePooled.trendPct.toFixed(1).replace('.', ',')} %</b></span>
+                                        <span>{t('Hinta 12 kk')} <b className={resalePooled.trendPct >= 0 ? 'text-green-700' : 'text-red-600'}>{resalePooled.trendPct >= 0 ? '+' : ''}{resalePooled.trendPct.toFixed(1).replace('.', ',')} %</b></span>
                                     )}
                                     {resaleLiq?.turnoverPct != null && (
-                                        <span>Kierto <b>{resaleLiq.turnoverPct.toFixed(1).replace('.', ',')} %</b> KT-kannasta/v</span>
+                                        <span>{t('Kierto')} <b>{resaleLiq.turnoverPct.toFixed(1).replace('.', ',')} %</b> {t('KT-kannasta/v')}</span>
                                     )}
                                 </div>
                             )}
 
                             {resaleLiq && resaleLiq.n >= 5 && (
                                 <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-[10.5px] text-slate-600">
-                                    {resaleLiq.staleShare != null && <span>Yli 90 vrk myynnissä <b>{Math.round(resaleLiq.staleShare * 100)} %</b></span>}
-                                    {resaleLiq.cutShare != null && <span>Hintaa laskettu <b>{Math.round(resaleLiq.cutShare * 100)} %</b></span>}
-                                    {resaleLiq.bumpedShare != null && <span>Ilmoitus uusittu <b>{Math.round(resaleLiq.bumpedShare * 100)} %</b></span>}
+                                    {resaleLiq.staleShare != null && <span>{t('Yli 90 vrk myynnissä')} <b>{Math.round(resaleLiq.staleShare * 100)} %</b></span>}
+                                    {resaleLiq.cutShare != null && <span>{t('Hintaa laskettu')} <b>{Math.round(resaleLiq.cutShare * 100)} %</b></span>}
+                                    {resaleLiq.bumpedShare != null && <span>{t('Ilmoitus uusittu')} <b>{Math.round(resaleLiq.bumpedShare * 100)} %</b></span>}
                                 </div>
                             )}
 
                             {sizeBandsLiq && sizeBandsLiq.some(b => b.domMedian != null) && (
                                 <div>
-                                    <MicroLabel>Mikä koko liikkuu? (myynnissä olevien ilmoitusten ikä)</MicroLabel>
+                                    <MicroLabel>{t('Mikä koko liikkuu? (myynnissä olevien ilmoitusten ikä)')}</MicroLabel>
                                     <div className="mt-1 space-y-0.5">
                                         <div className="grid grid-cols-[46px_1fr_1fr_1fr] gap-1 text-[8.5px] font-bold uppercase tracking-wide text-slate-400">
                                             <span>m²</span>
-                                            <span className="text-right">Ilmoituksia</span>
-                                            <span className="text-right">Ilm. ikä md</span>
-                                            <span className="text-right">Hintaa laskettu</span>
+                                            <span className="text-right">{t('Ilmoituksia')}</span>
+                                            <span className="text-right">{t('Ilm. ikä md')}</span>
+                                            <span className="text-right">{t('Hintaa laskettu')}</span>
                                         </div>
                                         {sizeBandsLiq.map(b => {
                                             const fastest = fastestBand?.id === b.id && b.domMedian != null;
@@ -1485,7 +1493,7 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
                                                 <div key={b.id} className={`grid grid-cols-[46px_1fr_1fr_1fr] gap-1 text-[10.5px] tabular-nums items-baseline ${fastest ? 'font-bold text-green-700' : ''}`}>
                                                     <span className="font-bold text-slate-600">{b.id}{fastest ? ' ★' : ''}</span>
                                                     <span className="text-right">{b.n || '–'}</span>
-                                                    <span className="text-right">{b.domMedian != null ? `${Math.round(b.domMedian)} vrk` : '–'}</span>
+                                                    <span className="text-right">{b.domMedian != null ? t('{n} vrk', { n: Math.round(b.domMedian) }) : '–'}</span>
                                                     <span className="text-right">{b.cutShare != null ? `${Math.round(b.cutShare * 100)} %` : '–'}</span>
                                                 </div>
                                             );
@@ -1495,10 +1503,7 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
                             )}
 
                             <div className="text-[9px] text-slate-400 leading-relaxed">
-                                Toteutuneet kaupat, varasto ja kierto lasketaan postinumeroalueittain ({resalePooled?.postcodes.join(', ') || comps?.postcodes.join(', ')}), ei säteellä —
-                                varainsiirtoverotiedot tilastoidaan postinumerotasolla. Varasto ja kierto ovat kerrostalokannan (KT) lukuja, jotta
-                                osoittaja ja nimittäjä mittaavat samaa kantaa. Ilm. ikä = kuinka kauan nykyiset myynti-ilmoitukset ovat olleet
-                                ulkona (Oikotie) — ei toteutunut myyntiaika.
+                                {t('Toteutuneet kaupat, varasto ja kierto lasketaan postinumeroalueittain ({codes}), ei säteellä — varainsiirtoverotiedot tilastoidaan postinumerotasolla. Varasto ja kierto ovat kerrostalokannan (KT) lukuja, jotta osoittaja ja nimittäjä mittaavat samaa kantaa. Ilm. ikä = kuinka kauan nykyiset myynti-ilmoitukset ovat olleet ulkona (Oikotie) — ei toteutunut myyntiaika.', { codes: resalePooled?.postcodes.join(', ') || comps?.postcodes.join(', ') || '' })}
                             </div>
                         </div>
                     </Section>
@@ -1506,7 +1511,7 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
 
                 {/* Unit mix gap */}
                 {st.projects > 0 && (
-                    <Section title="Huoneistojakauman vaje" defaultOpen={false}>
+                    <Section title={t('Huoneistojakauman vaje')} defaultOpen={false}>
                         <div className="space-y-1.5">
                             {a.mixGap.filter(m => m.sold + m.unsold > 0).map(m => (
                                 <div key={m.type} className="flex items-center gap-2">
@@ -1520,17 +1525,17 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
                                         </div>
                                     </div>
                                     <span className={`w-16 text-right text-[10px] font-bold ${m.gap > 0.05 ? 'text-green-700' : m.gap < -0.05 ? 'text-red-600' : 'text-slate-400'}`}>
-                                        {m.gap > 0.05 ? '▲ vajaus' : m.gap < -0.05 ? '▼ ylitarj.' : 'tasapaino'}
+                                        {m.gap > 0.05 ? t('▲ vajaus') : m.gap < -0.05 ? t('▼ ylitarj.') : t('tasapaino')}
                                     </span>
                                 </div>
                             ))}
                             <div className="flex gap-3 pt-0.5 text-[9.5px] text-slate-400">
-                                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500" /> Osuus myydyistä</span>
-                                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-orange-400" /> Osuus myymättömistä</span>
+                                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500" /> {t('Osuus myydyistä')}</span>
+                                <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-orange-400" /> {t('Osuus myymättömistä')}</span>
                             </div>
                             {roomCounts && (
                                 <div className="text-[10px] text-slate-500 pt-1 border-t border-slate-100 mt-1.5">
-                                    Vanhaa kantaa myynnissä (Oikotie): 1H <b>{roomCounts[0]}</b> · 2H <b>{roomCounts[1]}</b> · 3H <b>{roomCounts[2]}</b> · 4H+ <b>{roomCounts[3]}</b>
+                                    {t('Vanhaa kantaa myynnissä (Oikotie): 1H')} <b>{roomCounts[0]}</b> · 2H <b>{roomCounts[1]}</b> · 3H <b>{roomCounts[2]}</b> · 4H+ <b>{roomCounts[3]}</b>
                                     {' '}— vähäinen tarjonta vahvistaa vajesignaalin.
                                 </div>
                             )}
@@ -1540,7 +1545,7 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
 
                 {/* Competitors */}
                 {a.builders.length > 0 && (
-                    <Section title="Rakentajat alueella" defaultOpen={false} badge={<span className="text-[10px] text-slate-400 font-semibold">{a.builders.length}</span>}>
+                    <Section title={t('Rakentajat alueella')} defaultOpen={false} badge={<span className="text-[10px] text-slate-400 font-semibold">{a.builders.length}</span>}>
                         <div className="space-y-1">
                             {a.builders.slice(0, 8).map(b => (
                                 <div key={b.name} className="flex items-center justify-between gap-2 text-[11px]">
@@ -1555,11 +1560,11 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
                 )}
 
                 {/* Pipeline */}
-                <Section title="Tuleva tarjonta" defaultOpen={false} badge={
-                    <span className="text-[10px] text-slate-400 font-semibold">{nKohdetta(a.pipeline.length)}{plansNearby ? ` · ${plansNearby} kaavaa` : ''}</span>
+                <Section title={t('Tuleva tarjonta')} defaultOpen={false} badge={
+                    <span className="text-[10px] text-slate-400 font-semibold">{nKohdetta(a.pipeline.length)}{plansNearby ? ` · ${t('{n} kaavaa', { n: plansNearby })}` : ''}</span>
                 }>
                     {a.pipeline.length === 0 ? (
-                        <div className="text-[11.5px] text-slate-400">Ei rakenteilla/tulossa olevia STH-kohteita säteellä.</div>
+                        <div className="text-[11.5px] text-slate-400">{t('Ei rakenteilla/tulossa olevia STH-kohteita säteellä.')}</div>
                     ) : (
                         <div className="space-y-1">
                             {a.pipeline.slice(0, 8).map(({ project: p, distanceKm }) => (
@@ -1567,21 +1572,21 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
                                     <span className="truncate">
                                         <b>{formatYm(p.completionYm)}</b> · {p.name.replace(/^As\.?\s?Oy\s?(Helsingin|Espoon|Vantaan)?\s?/i, '')}
                                     </span>
-                                    <span className="flex-none text-slate-500 tabular-nums">{p.forSale.toFixed(0)} as. · {fmtKm(distanceKm)}</span>
+                                    <span className="flex-none text-slate-500 tabular-nums">{t('{n} as.', { n: p.forSale.toFixed(0) })} · {fmtKm(distanceKm)}</span>
                                 </div>
                             ))}
                         </div>
                     )}
                     {plansNearby != null && plansNearby > 0 && (
                         <div className="text-[10.5px] text-purple-700 font-medium mt-1.5">
-                            + {plansNearby} vireillä olevaa asemakaavaa säteellä (Helsinki) — mahdollista tulevaa tarjontaa
+                            + {t('{n} vireillä olevaa asemakaavaa säteellä (Helsinki) — mahdollista tulevaa tarjontaa', { n: plansNearby })}
                         </div>
                     )}
                 </Section>
 
                 {/* Demographics */}
                 {area && (
-                    <Section title="Alue & asukkaat (Paavo)" defaultOpen={false}>
+                    <Section title={t('Alue & asukkaat (Paavo)')} defaultOpen={false}>
                         {(() => {
                             const ap = area.properties;
                             const rows = [
@@ -1597,7 +1602,7 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
                                 <div className="space-y-1">
                                     {rows.map(r => (
                                         <div key={r.label} className="flex items-baseline justify-between text-[11.5px]">
-                                            <span className="text-slate-400 font-medium">{r.label}</span>
+                                            <span className="text-slate-400 font-medium">{t(r.label)}</span>
                                             <span className="font-semibold tabular-nums">{r.value}</span>
                                         </div>
                                     ))}
@@ -1609,7 +1614,7 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
                 )}
 
                 {/* Access */}
-                <Section title="Saavutettavuus" defaultOpen={false}>
+                <Section title={t('Saavutettavuus')} defaultOpen={false}>
                     <div className="space-y-1 text-[11.5px]">
                         {access?.nearest ? (
                             <div className="flex items-baseline justify-between">
@@ -1618,7 +1623,7 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
                                     {fmtKm(access.nearest.distanceKm)}
                                 </span>
                             </div>
-                        ) : <div className="text-slate-400">Raideyhteydet: ei dataa</div>}
+                        ) : <div className="text-slate-400">{t('Raideyhteydet: ei dataa')}</div>}
                         {access?.nearestPlanned && access.nearestPlanned.distanceKm < (access.nearest?.distanceKm ?? 99) && (
                             <div className="flex items-baseline justify-between text-purple-700">
                                 <span className="font-medium">Rakenteilla: {access.nearestPlanned.station.name}</span>
@@ -1628,11 +1633,11 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
                         {amen && (
                             <>
                                 <div className="flex items-baseline justify-between">
-                                    <span className="text-slate-400 font-medium">Koulut / päiväkodit 1 km</span>
+                                    <span className="text-slate-400 font-medium">{t('Koulut / päiväkodit 1 km')}</span>
                                     <span className="font-semibold tabular-nums">{amen.koulu} / {amen.paivakoti}</span>
                                 </div>
                                 <div className="flex items-baseline justify-between">
-                                    <span className="text-slate-400 font-medium">Lähin ruokakauppa</span>
+                                    <span className="text-slate-400 font-medium">{t('Lähin ruokakauppa')}</span>
                                     <span className="font-semibold tabular-nums">{fmtKm(amen.nearestKauppa)}</span>
                                 </div>
                             </>
@@ -1642,9 +1647,9 @@ export default function MarketAnalysisPanel({ open, point, radiusKm, onRadiusCha
 
                 {/* Footer */}
                 <div className="px-4 py-3 text-[9px] text-slate-400 leading-relaxed">
-                    STH-Group {formatSnapshot(dataset.snapshot)}{dataset.prevSnapshot ? ` (vertailu ${formatSnapshot(dataset.prevSnapshot)})` : ''} ·
-                    Oikotie {comps ? new Date(comps.fetchedAt).toLocaleTimeString('fi-FI', { hour: '2-digit', minute: '2-digit' }) : '–'} ·
-                    Tilastokeskus (Paavo, toteutuneet kaupat) · Maanmittauslaitos · OSM · Helsingin kaupunki
+                    STH-Group {formatSnapshot(dataset.snapshot)}{dataset.prevSnapshot ? ` (${t('vertailu {d}', { d: formatSnapshot(dataset.prevSnapshot) })})` : ''} ·
+                    Oikotie {comps ? new Date(comps.fetchedAt).toLocaleTimeString(lang === 'en' ? 'en-GB' : 'fi-FI', { hour: '2-digit', minute: '2-digit' }) : '–'} ·
+                    {' '}{t('Tilastokeskus (Paavo, toteutuneet kaupat) · Maanmittauslaitos · OSM · Helsingin kaupunki')}
                 </div>
             </div>
         </div>

@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { SthProject, UNIT_TYPES, gradeProject, formatMonthsInv, formatYm, fmtEur } from '@/lib/sthAnalysis';
+import { useT } from '@/lib/i18n';
 
 // Popup card for one STH new-build project. Follows the Vision A "structured
 // card" language of PlotPopupCard: tinted header band + chip, 3-tile stat row,
@@ -29,6 +30,7 @@ function MicroLabel({ children }: { children: React.ReactNode }) {
 }
 
 export default function SthProjectCard({ project }: { project: SthProject }) {
+    const t = useT();
     const [mixOpen, setMixOpen] = useState(false);
     const p = project;
     const grade = gradeProject(p);
@@ -39,10 +41,10 @@ export default function SthProjectCard({ project }: { project: SthProject }) {
         ? 'Loppuunmyyty'
         : p.monthsInventory == null
             ? (grade.id === 'new' ? 'Uusi kohde' : 'Ei kauppoja 12 kk')
-            : `${grade.label} · ${formatMonthsInv(p.monthsInventory)} kk varasto`;
+            : `${t(grade.label)} · ${formatMonthsInv(p.monthsInventory)} kk varasto`;
 
     const mixRows = UNIT_TYPES
-        .map((t, i) => ({ type: t, sold: p.soldByType[i], unsold: p.unsoldByType[i] }))
+        .map((ut, i) => ({ type: ut, sold: p.soldByType[i], unsold: p.unsoldByType[i] }))
         .filter(r => r.sold + r.unsold > 0);
 
     const ledger: { label: string; value: React.ReactNode }[] = [
@@ -52,7 +54,7 @@ export default function SthProjectCard({ project }: { project: SthProject }) {
             label: 'Tontti',
             value: `${TENURE_LABELS[p.plotTenure] || p.plotTenure || '–'}${p.landCost ? ` · ${fmtEur(p.landCost)} €/m²` : ''}`,
         },
-        ...(p.financing === 'H' ? [{ label: 'Rahoitus', value: <span className="text-purple-700 font-semibold">Hitas / säännelty</span> }] : []),
+        ...(p.financing === 'H' ? [{ label: 'Rahoitus', value: <span className="text-purple-700 font-semibold">{t('Hitas / säännelty')}</span> }] : []),
         ...(p.rentedOut ? [{ label: 'Vuokrattu', value: `${p.rentedOut} asuntoa` }] : []),
     ];
 
@@ -72,13 +74,13 @@ export default function SthProjectCard({ project }: { project: SthProject }) {
                         className={`text-[9.5px] font-bold uppercase tracking-[0.05em] px-2 py-[2.5px] rounded-full whitespace-nowrap ${p.tenure === 'oma'
                             ? 'bg-slate-700 text-white'
                             : 'bg-amber-100 text-amber-800 border border-dashed border-amber-400'}`}
-                        title={p.tenure === 'oma' ? 'Oma tontti — hinta sisältää tontin' : 'Hinta ei sisällä tonttia'}
+                        title={p.tenure === 'oma' ? t('Oma tontti — hinta sisältää tontin') : t('Hinta ei sisällä tonttia')}
                     >
-                        {p.tenure === 'oma' ? 'Oma tontti' : p.plotTenure === 'V-LUN' ? 'Vuokra + lun.' : 'Vuokratontti'}
+                        {p.tenure === 'oma' ? t('Oma tontti') : p.plotTenure === 'V-LUN' ? t('Vuokra + lun.') : t('Vuokratontti')}
                     </span>
                     {p.priceCut && (
                         <span className="text-[9.5px] font-bold px-1.5 py-[2.5px] rounded-full bg-red-100 text-red-700 whitespace-nowrap" title={p.priceChanges}>
-                            ↓ hintoja alennettu
+                            {t('↓ hintoja alennettu')}
                         </span>
                     )}
                 </div>
@@ -98,11 +100,11 @@ export default function SthProjectCard({ project }: { project: SthProject }) {
                     </div>
                     <div className="bg-slate-50 rounded-lg px-2 py-1.5 text-center">
                         <div className="text-[13px] font-bold">{p.sold.toFixed(0)}<span className="text-slate-400 font-semibold">/{p.units.toFixed(0)}</span></div>
-                        <MicroLabel>Myyty</MicroLabel>
+                        <MicroLabel>{t('Myyty')}</MicroLabel>
                     </div>
                     <div className="bg-slate-50 rounded-lg px-2 py-1.5 text-center">
                         <div className="text-[13px] font-bold">{p.sold12.toFixed(0)} <span className="text-[10px] text-slate-400 font-semibold">kpl</span></div>
-                        <MicroLabel>Myynti 12 kk</MicroLabel>
+                        <MicroLabel>{t('Myynti 12 kk')}</MicroLabel>
                     </div>
                 </div>
 
@@ -136,7 +138,7 @@ export default function SthProjectCard({ project }: { project: SthProject }) {
                 <div className="space-y-1">
                     {ledger.map((row, i) => (
                         <div key={i} className="flex items-baseline justify-between gap-2 text-[11.5px]">
-                            <span className="text-slate-400 font-medium whitespace-nowrap">{row.label}</span>
+                            <span className="text-slate-400 font-medium whitespace-nowrap">{t(row.label)}</span>
                             <span className="font-semibold text-right">{row.value}</span>
                         </div>
                     ))}
@@ -146,7 +148,7 @@ export default function SthProjectCard({ project }: { project: SthProject }) {
                 {mixRows.length > 0 && (
                     <div className="border-t border-slate-100 pt-2">
                         <button onClick={() => setMixOpen(!mixOpen)} className="w-full flex items-center justify-between text-left">
-                            <MicroLabel>Huoneistojakauma</MicroLabel>
+                            <MicroLabel>{t('Huoneistojakauma')}</MicroLabel>
                             <svg className={`w-3 h-3 text-slate-400 transition-transform ${mixOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                             </svg>
@@ -169,8 +171,8 @@ export default function SthProjectCard({ project }: { project: SthProject }) {
                                     );
                                 })}
                                 <div className="flex gap-3 pt-0.5 text-[9.5px] text-slate-400">
-                                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500" /> Myyty</span>
-                                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-orange-300" /> Vapaana</span>
+                                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500" /> {t('Myyty')}</span>
+                                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-orange-300" /> {t('Vapaana')}</span>
                                 </div>
                             </div>
                         )}

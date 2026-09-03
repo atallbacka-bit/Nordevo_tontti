@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/AuthProvider';
 import { PlotData, MarkSoldData } from '@/types';
+import { useT } from '@/lib/i18n';
 
 interface MarkSoldModalProps {
     isOpen: boolean;
@@ -16,6 +17,7 @@ export default function MarkSoldModal({
     onSave,
     plot
 }: MarkSoldModalProps) {
+    const t = useT();
     const { username } = useAuth();
     const [formData, setFormData] = useState<{ buyer: string; finalPrice: string; pricePerRight: string; soldDate: string; desc: string; updatedBy: string }>({
         buyer: '',
@@ -71,12 +73,12 @@ export default function MarkSoldModal({
                     type="button"
                     onClick={onClose}
                     className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 text-2xl font-bold leading-none"
-                    aria-label="Sulje"
+                    aria-label={t('Sulje')}
                 >
                     ×
                 </button>
 
-                <h2 className="text-xl font-bold mb-4 pr-8">Merkitse myydyksi</h2>
+                <h2 className="text-xl font-bold mb-4 pr-8">{t('Merkitse myydyksi')}</h2>
 
                 <div className="mb-4 text-sm text-gray-600 bg-gray-50 p-2 rounded">
                     <p className="font-semibold">{plot.name}</p>
@@ -85,7 +87,7 @@ export default function MarkSoldModal({
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="bg-yellow-50 p-3 rounded border border-yellow-200">
-                        <label className="block text-xs font-semibold text-gray-700 uppercase">Kirjaajan nimi *</label>
+                        <label className="block text-xs font-semibold text-gray-700 uppercase">{t('Kirjaajan nimi *')}</label>
                         <input
                             name="updatedBy"
                             type="text"
@@ -93,13 +95,13 @@ export default function MarkSoldModal({
                             value={formData.updatedBy}
                             onChange={handleChange}
                             className="w-full border rounded p-2 text-sm"
-                            placeholder="Oma nimesi"
+                            placeholder={t('Oma nimesi')}
                             autoFocus
                         />
                     </div>
 
                     <div>
-                        <label className="block text-xs font-semibold text-gray-700 uppercase">Ostaja *</label>
+                        <label className="block text-xs font-semibold text-gray-700 uppercase">{t('Ostaja *')}</label>
                         <input
                             name="buyer"
                             type="text"
@@ -107,13 +109,13 @@ export default function MarkSoldModal({
                             value={formData.buyer}
                             onChange={handleChange}
                             className="w-full border rounded p-2 text-sm"
-                            placeholder="Ostajan nimi / Yritys"
+                            placeholder={t('Ostajan nimi / Yritys')}
                         />
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
                         <div>
-                            <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Kem kauppahinta *</label>
+                            <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">{t('Kem kauppahinta *')}</label>
                             <div className="relative">
                                 <input
                                     name="pricePerRight"
@@ -129,7 +131,7 @@ export default function MarkSoldModal({
                         </div>
 
                         <div>
-                            <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Laskettu kokoshinta</label>
+                            <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">{t('Laskettu kokoshinta')}</label>
                             <div className="w-full border rounded p-2 text-sm bg-gray-100 text-gray-600 truncate">
                                 {computedFinalPrice.toLocaleString('fi-FI')} €
                             </div>
@@ -137,7 +139,7 @@ export default function MarkSoldModal({
                     </div>
 
                     <div>
-                        <label className="block text-xs font-semibold text-gray-700 uppercase">Kauppapäivä *</label>
+                        <label className="block text-xs font-semibold text-gray-700 uppercase">{t('Kauppapäivä *')}</label>
                         <input
                             name="soldDate"
                             type="date"
@@ -149,14 +151,14 @@ export default function MarkSoldModal({
                     </div>
 
                     <div>
-                        <label className="block text-xs font-semibold text-gray-700 uppercase">Lisätiedot</label>
+                        <label className="block text-xs font-semibold text-gray-700 uppercase">{t('Lisätiedot')}</label>
                         <textarea
                             name="desc"
                             rows={2}
                             value={formData.desc}
                             onChange={handleChange}
                             className="w-full border rounded p-2 text-sm"
-                            placeholder="Valinnainen kuvaus..."
+                            placeholder={t('Valinnainen kuvaus...')}
                         />
                     </div>
 
@@ -166,13 +168,13 @@ export default function MarkSoldModal({
                             onClick={onClose}
                             className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50"
                         >
-                            Peruuta
+                            {t('Peruuta')}
                         </button>
                         <button
                             type="submit"
                             className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded hover:bg-green-700"
                         >
-                            Merkitse myydyksi
+                            {t('Merkitse myydyksi')}
                         </button>
                     </div>
                 </form>

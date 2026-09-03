@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useT } from '@/lib/i18n';
 
 export interface AddressSearchResult {
     lat: string;
@@ -16,6 +17,7 @@ const MIN_QUERY_LENGTH = 2;
 const DEBOUNCE_MS = 300;
 
 export default function AddressSearch({ onSelect, getFocusPoint }: AddressSearchProps) {
+    const t = useT();
     const [query, setQuery] = useState('');
     const [results, setResults] = useState<AddressSearchResult[]>([]);
     const [isOpen, setIsOpen] = useState(false);
@@ -146,7 +148,7 @@ export default function AddressSearch({ onSelect, getFocusPoint }: AddressSearch
                     value={query}
                     onChange={handleInputChange}
                     onKeyDown={handleKeyDown}
-                    placeholder="Etsi osoite..."
+                    placeholder={t('Etsi osoite...')}
                     role="combobox"
                     aria-expanded={isOpen}
                     aria-controls="address-search-listbox"
@@ -158,7 +160,7 @@ export default function AddressSearch({ onSelect, getFocusPoint }: AddressSearch
                     type="button"
                     onClick={query ? handleClear : undefined}
                     className="px-3 py-2 text-slate-500 hover:text-blue-600 transition-colors bg-white"
-                    aria-label={query ? 'Tyhjennä haku' : 'Etsi osoite'}
+                    aria-label={query ? t('Tyhjennä haku') : t('Etsi osoite')}
                 >
                     {isLoading ? (
                         <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -201,7 +203,7 @@ export default function AddressSearch({ onSelect, getFocusPoint }: AddressSearch
 
             {isOpen && results.length === 0 && !isLoading && query.trim().length >= MIN_QUERY_LENGTH && (
                 <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-md shadow-lg border border-slate-200 p-3 text-sm text-slate-500 text-center">
-                    Ei tuloksia
+                    {t('Ei tuloksia')}
                 </div>
             )}
         </div>

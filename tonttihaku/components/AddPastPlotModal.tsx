@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { ZONING_TYPES, getZoningColor } from '@/lib/constants';
 import { ZoningEntry } from '@/types';
 import { useAuth } from '@/components/AuthProvider';
+import { useT } from '@/lib/i18n';
 
 interface AddPastPlotModalProps {
     isOpen: boolean;
@@ -17,6 +18,7 @@ export default function AddPastPlotModal({
     onSave,
     location
 }: AddPastPlotModalProps) {
+    const t = useT();
     const { username } = useAuth();
     const [formData, setFormData] = useState({
         name: '',
@@ -107,39 +109,39 @@ export default function AddPastPlotModal({
                     type="button"
                     onClick={onClose}
                     className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 text-2xl font-bold leading-none"
-                    aria-label="Sulje"
+                    aria-label={t('Sulje')}
                 >
                     ×
                 </button>
 
-                <h2 className="text-xl font-bold mb-4 pr-8">Lisää mennyt tontti</h2>
+                <h2 className="text-xl font-bold mb-4 pr-8">{t('Lisää mennyt tontti')}</h2>
 
                 <div className="mb-4 text-sm text-gray-600 bg-gray-50 p-2 rounded">
                     {location ? (
                         <span>Sijainti: {location.lat.toFixed(5)}, {location.lng.toFixed(5)}</span>
                     ) : (
-                        <span>Sijaintia ei määritetty</span>
+                        <span>{t('Sijaintia ei määritetty')}</span>
                     )}
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
-                        <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Kirjaajan nimi *</label>
+                        <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">{t('Kirjaajan nimi *')}</label>
                         <input name="createdBy" type="text" required value={formData.createdBy} onChange={handleChange}
-                            className="w-full border rounded p-2 text-sm" placeholder="Oma nimesi" autoFocus />
+                            className="w-full border rounded p-2 text-sm" placeholder={t('Oma nimesi')} autoFocus />
                     </div>
 
                     <div>
-                        <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Tontin nimi *</label>
+                        <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">{t('Tontin nimi *')}</label>
                         <input name="name" type="text" required value={formData.name} onChange={handleChange}
-                            className="w-full border rounded p-2 text-sm" placeholder="Esim. Tontti B" />
+                            className="w-full border rounded p-2 text-sm" placeholder={t('Esim. Tontti B')} />
                     </div>
 
                     <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
                         <div className="flex justify-between items-center mb-2">
-                            <label className="block text-xs font-semibold text-gray-700 uppercase">Kaavatyypit & kem *</label>
+                            <label className="block text-xs font-semibold text-gray-700 uppercase">{t('Kaavatyypit & kem *')}</label>
                             <button type="button" onClick={addZoning} className="text-xs bg-white border border-gray-300 px-2 py-1 rounded hover:bg-gray-100">
-                                + Lisää tyyppi
+                                {t('+ Lisää tyyppi')}
                             </button>
                         </div>
                         <div className="space-y-2">
@@ -173,7 +175,7 @@ export default function AddPastPlotModal({
 
                     <div className="grid grid-cols-2 gap-3">
                         <div>
-                            <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Kem kauppahinta *</label>
+                            <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">{t('Kem kauppahinta *')}</label>
                             <div className="relative">
                                 <input name="pricePerRight" type="number" required value={formData.pricePerRight} onChange={handleChange}
                                     className="w-full border rounded p-2 text-sm pr-12" placeholder="0" />
@@ -182,37 +184,37 @@ export default function AddPastPlotModal({
                         </div>
 
                         <div>
-                            <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Laskettu kokoshinta</label>
+                            <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">{t('Laskettu kokoshinta')}</label>
                             <div className="w-full border rounded p-2 text-sm bg-gray-100 text-gray-600">
                                 {finalPrice.toLocaleString()} €
                             </div>
                         </div>
 
                         <div className="col-span-2">
-                            <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Ostaja *</label>
+                            <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">{t('Ostaja *')}</label>
                             <input name="buyer" type="text" required value={formData.buyer} onChange={handleChange}
-                                className="w-full border rounded p-2 text-sm" placeholder="Ostajan nimi / Yritys" />
+                                className="w-full border rounded p-2 text-sm" placeholder={t('Ostajan nimi / Yritys')} />
                         </div>
 
                         <div className="col-span-2">
-                            <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Kauppapäivä *</label>
+                            <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">{t('Kauppapäivä *')}</label>
                             <input name="soldDate" type="date" required value={formData.soldDate} onChange={handleChange}
                                 className="w-full border rounded p-2 text-sm" />
                         </div>
                     </div>
 
                     <div>
-                        <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">Lisätiedot</label>
+                        <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">{t('Lisätiedot')}</label>
                         <textarea name="desc" rows={2} value={formData.desc} onChange={handleChange}
-                            className="w-full border rounded p-2 text-sm" placeholder="Valinnainen kuvaus..." />
+                            className="w-full border rounded p-2 text-sm" placeholder={t('Valinnainen kuvaus...')} />
                     </div>
 
                     <div className="flex justify-end space-x-3 pt-4 border-t">
                         <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50">
-                            Peruuta
+                            {t('Peruuta')}
                         </button>
                         <button type="submit" className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700">
-                            Lisää tontti
+                            {t('Lisää tontti')}
                         </button>
                     </div>
                 </form>

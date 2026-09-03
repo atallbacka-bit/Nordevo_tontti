@@ -5,6 +5,7 @@ import { useMap, Marker, Popup, GeoJSON } from 'react-leaflet';
 import L from 'leaflet';
 import { fetchBusinessPlots, BusinessPlot } from '@/lib/wfs-service';
 import { BusinessPlotFilters } from '@/types';
+import { useT } from '@/lib/i18n';
 
 interface BusinessPlotsLayerProps {
     visible: boolean;
@@ -19,6 +20,7 @@ export default function BusinessPlotsLayer({
     onFiltersChange,
     onUsageOptionsLoaded
 }: BusinessPlotsLayerProps) {
+    const t = useT();
     const map = useMap();
     const [data, setData] = useState<BusinessPlot[]>([]);
     const [loading, setLoading] = useState(false);
@@ -138,18 +140,18 @@ export default function BusinessPlotsLayer({
                         <div className="text-sm space-y-2">
                             <div className="grid grid-cols-2 gap-2 text-xs">
                                 <div className="bg-slate-50 p-1.5 rounded border border-slate-100">
-                                    <div className="text-slate-500 uppercase text-[10px] font-semibold">Rakennusoikeus</div>
+                                    <div className="text-slate-500 uppercase text-[10px] font-semibold">{t('Rakennusoikeus')}</div>
                                     <div className="font-bold text-slate-800 text-sm">{selectedPlot.rakennusoikeus ? `${selectedPlot.rakennusoikeus} ` : 'Ei ilm. '}{selectedPlot.rakennusoikeus && <span className="text-[10px] font-normal">k-m²</span>}</div>
                                 </div>
                                 <div className="bg-slate-50 p-1.5 rounded border border-slate-100">
-                                    <div className="text-slate-500 uppercase text-[10px] font-semibold">Pinta-ala</div>
+                                    <div className="text-slate-500 uppercase text-[10px] font-semibold">{t('Pinta-ala')}</div>
                                     <div className="font-bold text-slate-800 text-sm">{selectedPlot.pinta_ala} <span className="text-[10px] font-normal">m²</span></div>
                                 </div>
                             </div>
 
-                            <p className="border-t border-slate-100 pt-2"><span className="text-slate-500 text-xs uppercase font-semibold block mb-0.5">Käyttötarkoitus</span> {selectedPlot.kayttotarkoitus_selite}</p>
+                            <p className="border-t border-slate-100 pt-2"><span className="text-slate-500 text-xs uppercase font-semibold block mb-0.5">{t('Käyttötarkoitus')}</span> {selectedPlot.kayttotarkoitus_selite}</p>
 
-                            <p className="text-xs text-slate-500">Tunnus: <span className="font-mono text-slate-700">{selectedPlot.jhs_tunnus}</span></p>
+                            <p className="text-xs text-slate-500">{t('Tunnus:')} <span className="font-mono text-slate-700">{selectedPlot.jhs_tunnus}</span></p>
 
                             {selectedPlot.lisatietoja && <p className="text-slate-600 bg-yellow-50 p-2 rounded border border-yellow-100 text-xs italic">{selectedPlot.lisatietoja}</p>}
 

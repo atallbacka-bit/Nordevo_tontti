@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { PlotData } from '@/types';
 import { ZONING_TYPES, getZoningColor } from '@/lib/constants';
+import { useT } from '@/lib/i18n';
 import {
     parseZonings,
     parseNotes,
@@ -62,6 +63,7 @@ export default function PlotPopupCard({
     onAddNote,
     onShowHistory
 }: PlotPopupCardProps) {
+    const t = useT();
     const [contactsOpen, setContactsOpen] = useState(true);
     const [eventsOpen, setEventsOpen] = useState(false);
     const [menuOpen, setMenuOpen] = useState(false);
@@ -83,7 +85,7 @@ export default function PlotPopupCard({
         ? (plot.pricePerRight || ((plot.finalPrice && totalBR) ? Math.round(plot.finalPrice / totalBR) : null))
         : ((priceToUse && totalBR) ? Math.round(priceToUse / totalBR) : null);
 
-    const priceLabel = isSold ? 'Kauppahinta' : (plot.status === 'Tarjottu' && plot.offerPrice) ? 'Tarjous' : 'Hinta-arvio';
+    const priceLabel = isSold ? t('Kauppahinta') : (plot.status === 'Tarjottu' && plot.offerPrice) ? t('Tarjous') : t('Hinta-arvio');
 
     const events = [
         ...notes.map(n => ({ id: n.id, type: 'note' as const, date: n.timestamp, who: n.author, person: '', text: n.text })),
@@ -169,7 +171,7 @@ export default function PlotPopupCard({
             <div className="px-3.5 py-2.5 space-y-2.5">
                 {/* Zoning breakdown */}
                 <div>
-                    <MicroLabel>Kaavatyypit</MicroLabel>
+                    <MicroLabel>{t('Kaavatyypit')}</MicroLabel>
                     <div className="mt-1">
                         {zonings.map((z, idx) => (
                             <div key={idx} className="flex items-center gap-1.5 py-[1.5px] text-[12px] text-slate-600">
@@ -180,7 +182,7 @@ export default function PlotPopupCard({
                         ))}
                         {zonings.length > 1 && (
                             <div className="flex text-[11.5px] font-bold border-t border-slate-100 mt-1 pt-1 tabular-nums">
-                                <span>Yhteensä</span>
+                                <span>{t('Yhteensä')}</span>
                                 <span className="ml-auto">{totalBR.toLocaleString('fi-FI')} k-m²</span>
                             </div>
                         )}
@@ -191,7 +193,7 @@ export default function PlotPopupCard({
                 <div className="space-y-[3px]">
                     {ledgerRows.map((row) => (
                         <div key={row.label} className="flex text-[11.5px]">
-                            <span className="text-slate-500">{row.label}</span>
+                            <span className="text-slate-500">{t(row.label)}</span>
                             <span className="ml-auto font-medium text-slate-800 text-right">{row.value}</span>
                         </div>
                     ))}
@@ -212,13 +214,13 @@ export default function PlotPopupCard({
                                 className="flex items-center gap-1.5 cursor-pointer select-none"
                                 onClick={() => setContactsOpen(!contactsOpen)}
                             >
-                                <span className="text-[12px] font-semibold text-slate-700">Yhteystiedot</span>
+                                <span className="text-[12px] font-semibold text-slate-700">{t('Yhteystiedot')}</span>
                                 <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 rounded-full px-1.5 py-px">{persons.length}</span>
                                 <button
                                     onClick={(e) => { e.stopPropagation(); onEditContacts(plot); }}
                                     className="ml-auto text-[10px] text-blue-600 hover:underline"
                                 >
-                                    Muokkaa
+                                    {t('Muokkaa')}
                                 </button>
                                 <Chevron open={contactsOpen} />
                             </div>
@@ -238,7 +240,7 @@ export default function PlotPopupCard({
                                         ))}
                                     </div>
                                 ) : (
-                                    <div className="mt-1 text-[11px] text-slate-400 italic">Ei yhteystietoja.</div>
+                                    <div className="mt-1 text-[11px] text-slate-400 italic">{t('Ei yhteystietoja.')}</div>
                                 )
                             )}
                         </div>
@@ -249,13 +251,13 @@ export default function PlotPopupCard({
                                 className="flex items-center gap-1.5 cursor-pointer select-none"
                                 onClick={() => setEventsOpen(!eventsOpen)}
                             >
-                                <span className="text-[12px] font-semibold text-slate-700">Tapahtumat</span>
+                                <span className="text-[12px] font-semibold text-slate-700">{t('Tapahtumat')}</span>
                                 <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 rounded-full px-1.5 py-px">{events.length}</span>
                                 <button
                                     onClick={(e) => { e.stopPropagation(); onAddNote(plot.id, plot.name); }}
                                     className="ml-auto text-[10px] text-blue-600 hover:underline"
                                 >
-                                    + Muistiinpano
+                                    {t('+ Muistiinpano')}
                                 </button>
                                 <Chevron open={eventsOpen} />
                             </div>
@@ -270,7 +272,7 @@ export default function PlotPopupCard({
                                                 >
                                                     <div className="flex items-baseline">
                                                         <span className="font-semibold text-slate-800 tabular-nums">{formatDate(item.date)}</span>
-                                                        <span className="text-slate-400 ml-1.5">{item.type === 'contact' ? 'Kontaktointi' : 'Muistiinpano'}</span>
+                                                        <span className="text-slate-400 ml-1.5">{item.type === 'contact' ? t('Kontaktointi') : t('Muistiinpano')}</span>
                                                         <span className="ml-auto text-slate-400">{item.who}</span>
                                                     </div>
                                                     {item.type === 'contact' && item.person && (
@@ -288,7 +290,7 @@ export default function PlotPopupCard({
                                         </button>
                                     </>
                                 ) : (
-                                    <div className="mt-1 text-[11px] text-slate-400 italic">Ei tapahtumia.</div>
+                                    <div className="mt-1 text-[11px] text-slate-400 italic">{t('Ei tapahtumia.')}</div>
                                 )
                             )}
                         </div>
@@ -304,14 +306,14 @@ export default function PlotPopupCard({
                             onClick={() => onLogContact(plot)}
                             className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-semibold rounded-lg py-[7px] px-2"
                         >
-                            Uusi kontaktointi
+                            {t('Uusi kontaktointi')}
                         </button>
                     ) : (
                         <button
                             onClick={() => onEditContacts(plot)}
                             className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-[12px] font-semibold rounded-lg py-[7px] px-2"
                         >
-                            Lisää yhteyshenkilö
+                            {t('Lisää yhteyshenkilö')}
                         </button>
                     )
                 )}
@@ -319,12 +321,12 @@ export default function PlotPopupCard({
                     onClick={() => onEdit(plot)}
                     className={`${isSold ? 'flex-1' : ''} bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-[12px] font-semibold rounded-lg py-[7px] px-3`}
                 >
-                    Muokkaa
+                    {t('Muokkaa')}
                 </button>
                 <button
                     onClick={() => setMenuOpen(!menuOpen)}
                     className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-500 text-[13px] font-bold rounded-lg py-[7px] px-2.5 leading-none"
-                    aria-label="Lisää toimintoja"
+                    aria-label={t('Lisää toimintoja')}
                 >
                     ⋯
                 </button>
@@ -335,13 +337,13 @@ export default function PlotPopupCard({
                             onClick={copyShareLink}
                             className="w-full text-left px-3 py-1.5 text-[11.5px] text-slate-700 hover:bg-slate-50"
                         >
-                            {copied ? 'Linkki kopioitu ✓' : 'Jaa linkki'}
+                            {copied ? t('Linkki kopioitu ✓') : t('Jaa linkki')}
                         </button>
                         <button
                             onClick={() => { setMenuOpen(false); window.open(`/api/plot-deck?id=${plot.id}`, '_blank'); }}
                             className="w-full text-left px-3 py-1.5 text-[11.5px] text-slate-700 hover:bg-slate-50"
                         >
-                            Lataa esitys (.pptx)
+                            {t('Lataa esitys (.pptx)')}
                         </button>
                         {!isSold && (
                             <>
@@ -349,13 +351,13 @@ export default function PlotPopupCard({
                                     onClick={() => { setMenuOpen(false); onMarkOffered(plot); }}
                                     className="w-full text-left px-3 py-1.5 text-[11.5px] text-slate-700 hover:bg-slate-50"
                                 >
-                                    Merkitse tarjotuksi
+                                    {t('Merkitse tarjotuksi')}
                                 </button>
                                 <button
                                     onClick={() => { setMenuOpen(false); onMarkSold(plot); }}
                                     className="w-full text-left px-3 py-1.5 text-[11.5px] text-slate-700 hover:bg-slate-50"
                                 >
-                                    Merkitse myydyksi
+                                    {t('Merkitse myydyksi')}
                                 </button>
                             </>
                         )}

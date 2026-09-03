@@ -1,10 +1,20 @@
+'use client';
+
 import dynamic from 'next/dynamic';
+import { useT } from '@/lib/i18n';
 
 // Dynamically import the Map component to avoid SSR issues with Leaflet
 const MapWithNoSSR = dynamic(() => import('@/components/MapComponent'), {
     ssr: false,
-    loading: () => <div className="flex items-center justify-center h-full bg-gray-200">Ladataan karttaa...</div>
+    loading: () => <MapLoading />
 });
+
+function MapLoading() {
+    const t = useT();
+    return (
+        <div className="flex items-center justify-center h-full bg-gray-200">{t('Ladataan karttaa...')}</div>
+    );
+}
 
 export default function Home() {
     return (

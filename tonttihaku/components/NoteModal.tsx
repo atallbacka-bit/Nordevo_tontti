@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/AuthProvider';
+import { useT } from '@/lib/i18n';
 
 interface NoteModalProps {
     isOpen: boolean;
@@ -10,6 +11,7 @@ interface NoteModalProps {
 }
 
 export default function NoteModal({ isOpen, onClose, onSave, plotName }: NoteModalProps) {
+    const t = useT();
     const { username } = useAuth();
     const [text, setText] = useState('');
     const [author, setAuthor] = useState('');
@@ -49,12 +51,12 @@ export default function NoteModal({ isOpen, onClose, onSave, plotName }: NoteMod
                         onClose();
                     }}
                     className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 text-2xl font-bold leading-none"
-                    aria-label="Sulje"
+                    aria-label={t('Sulje')}
                 >
                     ×
                 </button>
 
-                <h2 className="text-lg font-bold mb-2 pr-8">Lisää muistiinpano</h2>
+                <h2 className="text-lg font-bold mb-2 pr-8">{t('Lisää muistiinpano')}</h2>
                 {plotName && (
                     <p className="text-sm text-gray-600 mb-4">Kohde: {plotName}</p>
                 )}
@@ -62,7 +64,7 @@ export default function NoteModal({ isOpen, onClose, onSave, plotName }: NoteMod
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
                         <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
-                            Muistiinpano *
+                            {t('Muistiinpano *')}
                         </label>
                         <textarea
                             value={text}
@@ -70,14 +72,14 @@ export default function NoteModal({ isOpen, onClose, onSave, plotName }: NoteMod
                             required
                             rows={4}
                             className="w-full border rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="Kirjoita muistiinpano..."
+                            placeholder={t('Kirjoita muistiinpano...')}
                             autoFocus
                         />
                     </div>
 
                     <div>
                         <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
-                            Nimesi *
+                            {t('Nimesi *')}
                         </label>
                         <input
                             type="text"
@@ -85,10 +87,10 @@ export default function NoteModal({ isOpen, onClose, onSave, plotName }: NoteMod
                             onChange={(e) => setAuthor(e.target.value)}
                             required
                             className="w-full border rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            placeholder="Oma nimesi"
+                            placeholder={t('Oma nimesi')}
                         />
                         <p className="text-xs text-gray-500 mt-1">
-                            Aikaleima lisätään automaattisesti.
+                            {t('Aikaleima lisätään automaattisesti.')}
                         </p>
                     </div>
 
@@ -102,13 +104,13 @@ export default function NoteModal({ isOpen, onClose, onSave, plotName }: NoteMod
                             }}
                             className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50"
                         >
-                            Peruuta
+                            {t('Peruuta')}
                         </button>
                         <button
                             type="submit"
                             className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded hover:bg-blue-700"
                         >
-                            Lisää
+                            {t('Lisää')}
                         </button>
                     </div>
                 </form>

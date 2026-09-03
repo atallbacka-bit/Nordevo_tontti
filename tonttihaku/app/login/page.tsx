@@ -2,8 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { useT, LanguageToggle } from '@/lib/i18n';
 
 export default function LoginPage() {
+    const t = useT();
     const [password, setPassword] = useState('');
     const [username, setUsername] = useState('');
     const [error, setError] = useState('');
@@ -44,10 +46,10 @@ export default function LoginPage() {
                 // Use hard redirect to ensure cookies are sent and middleware runs fresh
                 window.location.href = '/';
             } else {
-                setError(data.error || 'Kirjautuminen epäonnistui');
+                setError(data.error || t('Kirjautuminen epäonnistui'));
             }
         } catch (err) {
-            setError('Yhteysvirhe. Yritä uudelleen.');
+            setError(t('Yhteysvirhe. Yritä uudelleen.'));
         } finally {
             setLoading(false);
         }
@@ -57,34 +59,37 @@ export default function LoginPage() {
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900">
             <div className="w-full max-w-sm mx-4">
                 <div className="bg-white/10 backdrop-blur-lg rounded-2xl shadow-2xl p-8 border border-white/20">
+                    <div className="flex justify-end mb-2">
+                        <LanguageToggle variant="dark" />
+                    </div>
                     <div className="text-center mb-8">
-                        <h1 className="text-3xl font-bold text-white mb-2">Tonttihaku</h1>
-                        <p className="text-blue-200/70 text-sm">Pääkaupunkiseudun tonttihaku</p>
+                        <h1 className="text-3xl font-bold text-white mb-2">{t('Tonttihaku')}</h1>
+                        <p className="text-blue-200/70 text-sm">{t('Pääkaupunkiseudun tonttihaku')}</p>
                     </div>
 
                     <form onSubmit={handleSubmit} className="space-y-5">
                         <div>
                             <label className="block text-sm font-medium text-blue-100 mb-1.5">
-                                Nimi
+                                {t('Nimi')}
                             </label>
                             <input
                                 type="text"
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
-                                placeholder="Nimesi (näkyy muokkauksissa)"
+                                placeholder={t('Nimesi (näkyy muokkauksissa)')}
                                 className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
                             />
                         </div>
 
                         <div>
                             <label className="block text-sm font-medium text-blue-100 mb-1.5">
-                                Salasana
+                                {t('Salasana')}
                             </label>
                             <input
                                 type="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                placeholder="Syötä salasana"
+                                placeholder={t('Syötä salasana')}
                                 required
                                 className="w-full px-4 py-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent transition-all"
                             />
@@ -101,7 +106,7 @@ export default function LoginPage() {
                             disabled={loading || !password}
                             className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 disabled:cursor-not-allowed text-white font-semibold rounded-lg shadow-lg transition-all duration-200 hover:shadow-blue-500/25"
                         >
-                            {loading ? 'Kirjaudutaan...' : 'Kirjaudu'}
+                            {loading ? t('Kirjaudutaan...') : t('Kirjaudu')}
                         </button>
                     </form>
                 </div>

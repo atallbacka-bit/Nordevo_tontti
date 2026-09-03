@@ -13,6 +13,7 @@ import {
     gradeProject, formatSnapshot, fmtEur, ProductClass,
 } from '@/lib/sthAnalysis';
 import { loadPostalAreas, PostalAreaFC, ParcelInfo } from '@/lib/marketData';
+import { useT } from '@/lib/i18n';
 
 // The STH market intelligence layer:
 //  · absorption-graded project pins (data from /api/sales-data)
@@ -143,6 +144,7 @@ function Switch({ on }: { on: boolean }) {
 }
 
 export default function SthMarketLayer({ showProjects, showHeatmap, advisorOn, showPlans }: Props) {
+    const t = useT();
     const map = useMap();
     const [rows, setRows] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
@@ -177,12 +179,12 @@ export default function SthMarketLayer({ showProjects, showHeatmap, advisorOn, s
 
     // portal targets appear when the matching layer is toggled on in FilterPanel
     useEffect(() => {
-        const t = setTimeout(() => setContainers({
+        const timer = setTimeout(() => setContainers({
             projects: showProjects ? document.getElementById('sth-projects-filters-container') : null,
             heatmap: showHeatmap ? document.getElementById('sth-heatmap-filters-container') : null,
             advisor: advisorOn ? document.getElementById('sth-analysis-filters-container') : null,
         }), 0);
-        return () => clearTimeout(t);
+        return () => clearTimeout(timer);
     }, [showProjects, showHeatmap, advisorOn]);
 
     // data load (once)
@@ -305,15 +307,15 @@ export default function SthMarketLayer({ showProjects, showHeatmap, advisorOn, s
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action: 'replaceSnapshot', snapshot, data: items }),
             });
-            if (!res.ok) throw new Error('Tallennus epäonnistui');
+            if (!res.ok) throw new Error(t('Tallennus epäonnistui'));
 
             const fresh = await fetch('/api/sales-data').then(r => r.json());
             if (Array.isArray(fresh)) setRows(fresh);
             setProgress('');
-            alert(`Tilanne ${snapshot} tuotu: ${items.length} kohdetta.${failed.length ? `\nIlman sijaintia jäi ${failed.length}: ${failed.slice(0, 5).join(', ')}${failed.length > 5 ? '…' : ''}` : ''}`);
+            alert(`${t('Tilanne {s} tuotu: {n} kohdetta.', { s: snapshot, n: items.length })}${failed.length ? `\n${t('Ilman sijaintia jäi {n}: {names}', { n: failed.length, names: failed.slice(0, 5).join(', ') + (failed.length > 5 ? '…' : '') })}` : ''}`);
         } catch (err: any) {
             console.error(err);
-            alert(`Virhe tuonnissa: ${err?.message || err}`);
+            alert(`${t('Virhe tuonnissa')}: ${err?.message || err}`);
             setProgress('');
         } finally {
             setLoading(false);
@@ -330,7 +332,7 @@ export default function SthMarketLayer({ showProjects, showHeatmap, advisorOn, s
         const soldOut = p.forSale <= 0;
         const isLease = p.tenure !== 'oma';
         const price = p.eurM2 ? fmtEur(Math.round(p.eurM2 / 100) * 100) : '?';
-        const hint = `${isLease ? 'Vuokratontti (hinta ilman tonttia)' : 'Oma tontti'} · ${grade.label}`;
+        const hint = `${isLease ? t('Vuokratontti (hinta ilman tonttia)') : t('Oma tontti')} · ${t(grade.label)}`;
         const icon = L.divIcon({
             className: 'custom-plot-icon',
             html: `<div class="plot-pin-center"><div class="sth-pill ${isLease ? 'sth-vuokra' : 'sth-oma'}${soldOut ? ' sth-soldout' : ''}" title="${hint}">
@@ -408,7 +410,7 @@ export default function SthMarketLayer({ showProjects, showHeatmap, advisorOn, s
             ].filter(Boolean).join(' · ')
             : '';
         (layer as any).bindTooltip(
-            `<b>${props.code} ${props.name}</b><br/>${metricCfg.label}: ${v}${stat ? `<br/>${stat.projects} kohdetta · ${stat.sold12} myyty 12 kk` : ''}${priceLine ? `<br/>${priceLine}` : ''}`,
+            `<b>${props.code} ${props.name}</b><br/>${t(metricCfg.label)}: ${v}${stat ? `<br/>${stat.projects} kohdetta · ${stat.sold12} myyty 12 kk` : ''}${priceLine ? `<br/>${priceLine}` : ''}`,
             { sticky: true, className: 'sth-tooltip' }
         );
         layer.on('click', (e: any) => {
@@ -424,7 +426,7 @@ export default function SthMarketLayer({ showProjects, showHeatmap, advisorOn, s
     const statusLine = (
         <div className="text-[10.5px] text-slate-500">
             {loading ? (progress || 'Ladataan…') : dataset.snapshot
-                ? <>Tilanne <b>{formatSnapshot(dataset.snapshot)}</b> · {dataset.projects.length} kohdetta{dataset.prevSnapshot ? <> · vertailu {formatSnapshot(dataset.prevSnapshot)}</> : null}</>
+                ? <>{t('Tilanne')} <b>{formatSnapshot(dataset.snapshot)}</b> · {dataset.projects.length} kohdetta{dataset.prevSnapshot ? <> · vertailu {formatSnapshot(dataset.prevSnapshot)}</> : null}</>
                 : 'Ei dataa — tuo STH-Excel alta.'}
         </div>
     );
@@ -434,13 +436,13 @@ export default function SthMarketLayer({ showProjects, showHeatmap, advisorOn, s
         <div className="space-y-3">
             {statusLine}
             <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-[0.07em] mb-1">Väritys</label>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-[0.07em] mb-1">{t('Väritys')}</label>
                 <select
                     value={metric}
                     onChange={e => setMetric(e.target.value)}
                     className="w-full px-2 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded focus:bg-white focus:outline-none"
                 >
-                    {Object.entries(METRICS).map(([k, m]) => <option key={k} value={k}>{m.label}</option>)}
+                    {Object.entries(METRICS).map(([k, m]) => <option key={k} value={k}>{t(m.label)}</option>)}
                 </select>
             </div>
         </div>
@@ -450,11 +452,11 @@ export default function SthMarketLayer({ showProjects, showHeatmap, advisorOn, s
     const advisorPanel = (
         <div className="space-y-2">
             <div className="text-[10.5px] text-slate-500">
-                Klikkaa karttaa avataksesi markkina-analyysin valitulta säteeltä.
+                {t('Klikkaa karttaa avataksesi markkina-analyysin valitulta säteeltä.')}
             </div>
             <div>
                 <label className="flex items-center justify-between text-[10px] font-bold text-slate-400 uppercase tracking-[0.07em] mb-1">
-                    <span>Säde</span>
+                    <span>{t('Säde')}</span>
                     <span className="text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded text-[10px] normal-case tracking-normal">{radiusKm.toFixed(1)} km</span>
                 </label>
                 <input
@@ -468,7 +470,7 @@ export default function SthMarketLayer({ showProjects, showHeatmap, advisorOn, s
                     onClick={() => setAnalysisPoint(null)}
                     className="text-[11px] font-medium text-slate-500 hover:text-slate-800 underline underline-offset-2"
                 >
-                    Tyhjennä valinta
+                    {t('Tyhjennä valinta')}
                 </button>
             )}
         </div>
@@ -490,7 +492,7 @@ export default function SthMarketLayer({ showProjects, showHeatmap, advisorOn, s
                                     onClick={() => setProductFilter(on ? productFilter.filter(x => x !== c.id) : [...productFilter, c.id])}
                                     className={`px-2 py-1 text-[10.5px] font-semibold rounded-full border transition-all ${on ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}
                                 >
-                                    {c.label}
+                                    {t(c.label)}
                                 </button>
                             );
                         })}
@@ -500,20 +502,20 @@ export default function SthMarketLayer({ showProjects, showHeatmap, advisorOn, s
                         {([
                             { id: 'oma' as const, label: 'Oma tontti' },
                             { id: 'vuokra' as const, label: 'Vuokratontti' },
-                        ]).map(t => {
-                            const on = tenureFilter.includes(t.id);
+                        ]).map(ten => {
+                            const on = tenureFilter.includes(ten.id);
                             return (
                                 <button
-                                    key={t.id}
-                                    onClick={() => setTenureFilter(on ? tenureFilter.filter(x => x !== t.id) : [...tenureFilter, t.id])}
+                                    key={ten.id}
+                                    onClick={() => setTenureFilter(on ? tenureFilter.filter(x => x !== ten.id) : [...tenureFilter, ten.id])}
                                     className="px-2 py-1 text-[10.5px] font-semibold rounded-full border transition-all"
                                     style={on
-                                        ? (t.id === 'oma'
+                                        ? (ten.id === 'oma'
                                             ? { background: '#d8e7fa', borderColor: 'rgba(37,99,235,0.45)', color: '#1e40af' }
                                             : { background: '#fdeec9', borderColor: 'rgba(217,119,6,0.5)', color: '#92400e' })
                                         : { background: '#fff', borderColor: '#e2e8f0', color: '#64748b' }}
                                 >
-                                    {t.label}
+                                    {t(ten.label)}
                                 </button>
                             );
                         })}
@@ -524,7 +526,7 @@ export default function SthMarketLayer({ showProjects, showHeatmap, advisorOn, s
                             onChange={e => setBuilderFilter(e.target.value)}
                             className="flex-1 min-w-0 px-2 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded focus:bg-white focus:outline-none"
                         >
-                            <option value="">Kaikki rakentajat</option>
+                            <option value="">{t('Kaikki rakentajat')}</option>
                             {builders.slice(0, 40).map(b => <option key={b.name} value={b.name}>{b.name} ({b.cnt})</option>)}
                         </select>
                         <select
@@ -532,19 +534,19 @@ export default function SthMarketLayer({ showProjects, showHeatmap, advisorOn, s
                             onChange={e => setCompletionFilter(e.target.value as CompletionFilter)}
                             className="w-[92px] px-2 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded focus:bg-white focus:outline-none"
                         >
-                            <option value="kaikki">Kaikki</option>
-                            <option value="valmis">Valmiit</option>
-                            <option value="tuleva">Tulevat</option>
+                            <option value="kaikki">{t('Kaikki')}</option>
+                            <option value="valmis">{t('Valmiit')}</option>
+                            <option value="tuleva">{t('Tulevat')}</option>
                         </select>
                     </div>
                     <div className="flex flex-wrap gap-x-4 gap-y-1">
                         <label className="flex items-center gap-1.5 cursor-pointer text-[11px] text-slate-600">
                             <input type="checkbox" checked={onlyForSale} onChange={e => setOnlyForSale(e.target.checked)} className="rounded border-slate-300 w-3.5 h-3.5" />
-                            Vain myynnissä olevat
+                            {t('Vain myynnissä olevat')}
                         </label>
                         <label className="flex items-center gap-1.5 cursor-pointer text-[11px] text-slate-600">
                             <input type="checkbox" checked={onlyCuts} onChange={e => setOnlyCuts(e.target.checked)} className="rounded border-slate-300 w-3.5 h-3.5" />
-                            Vain alennetut ↓
+                            {t('Vain alennetut ↓')}
                         </label>
                     </div>
                     <div className="text-[10px] text-slate-400">{visibleProjects.length} / {dataset.projects.length} kohdetta näkyvissä</div>
@@ -561,14 +563,14 @@ export default function SthMarketLayer({ showProjects, showHeatmap, advisorOn, s
                         ))}
                     </div>
                     <div className="flex flex-wrap gap-x-3 gap-y-1 text-[9.5px] text-slate-500">
-                        <span className="flex items-center gap-1"><span className="inline-block w-5 h-3 rounded-full" style={{ background: '#d8e7fa', border: '1px solid rgba(37,99,235,0.35)' }} />oma tontti</span>
-                    <span className="flex items-center gap-1"><span className="inline-block w-5 h-3 rounded-full" style={{ background: '#fdeec9', border: '1px solid rgba(217,119,6,0.4)' }} />vuokratontti (hinta ilman tonttia)</span>
+                        <span className="flex items-center gap-1"><span className="inline-block w-5 h-3 rounded-full" style={{ background: '#d8e7fa', border: '1px solid rgba(37,99,235,0.35)' }} />{t('oma tontti')}</span>
+                    <span className="flex items-center gap-1"><span className="inline-block w-5 h-3 rounded-full" style={{ background: '#fdeec9', border: '1px solid rgba(217,119,6,0.4)' }} />{t('vuokratontti (hinta ilman tonttia)')}</span>
                 </div>
             </div>
 
             {/* Import */}
             <div className="border-t border-slate-100 pt-2.5">
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-[0.07em] mb-1">Tuo uusi STH-Excel</label>
+                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-[0.07em] mb-1">{t('Tuo uusi STH-Excel')}</label>
                 <input
                     ref={fileInputRef}
                     type="file"
@@ -577,7 +579,7 @@ export default function SthMarketLayer({ showProjects, showHeatmap, advisorOn, s
                     disabled={loading}
                     className="block w-full text-xs text-slate-500 file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100 disabled:opacity-50"
                 />
-                <div className="text-[9.5px] text-slate-400 mt-1">Sama tilannepäivä korvataan; vanhat tilanteet säilyvät vertailua varten.</div>
+                <div className="text-[9.5px] text-slate-400 mt-1">{t('Sama tilannepäivä korvataan; vanhat tilanteet säilyvät vertailua varten.')}</div>
                 {progress && <div className="text-[10px] font-medium text-blue-600 mt-1">{progress}</div>}
             </div>
         </div>
@@ -586,12 +588,12 @@ export default function SthMarketLayer({ showProjects, showHeatmap, advisorOn, s
     // ── Map legend for choropleth ────────────────────────────
     const legend = showHeatmap ? (
         <div className="absolute bottom-6 left-3 z-[900] bg-white/95 rounded-lg shadow-md border border-slate-200 px-2.5 py-2 pointer-events-none">
-            <div className="text-[9px] font-bold uppercase tracking-[0.06em] text-slate-500 mb-1">{metricCfg.label}</div>
+            <div className="text-[9px] font-bold uppercase tracking-[0.06em] text-slate-500 mb-1">{t(metricCfg.label)}</div>
             <div className="space-y-0.5">
                 {metricCfg.legend.map(row => (
                     <div key={row.label} className="flex items-center gap-1.5 text-[9.5px] text-slate-600">
                         <span className="w-3 h-2.5 rounded-sm" style={{ background: row.color }} />
-                        {row.label}
+                        {t(row.label)}
                     </div>
                 ))}
             </div>
@@ -625,11 +627,11 @@ export default function SthMarketLayer({ showProjects, showHeatmap, advisorOn, s
                         const p = f.properties || {};
                         layer.bindPopup(
                             `<div style="font-size:12px;min-width:170px;">
-                                <b>Asemakaava vireillä</b><br/>
-                                Kaavatunnus: <b>${p.kaavatunnus || '–'}</b><br/>
+                                <b>{t('Asemakaava vireillä')}</b><br/>
+                                {t('Kaavatunnus:')} <b>${p.kaavatunnus || '–'}</b><br/>
                                 ${p.hyvaksymispvm ? `Hyväksyminen: ${p.hyvaksymispvm}<br/>` : ''}
                                 ${p.pintaala ? `Pinta-ala: ${Math.round(p.pintaala / 1000)/10} ha<br/>` : ''}
-                                <a href="https://kartta.hel.fi/?setlanguage=fi&autosearch=${encodeURIComponent(p.kaavatunnus || '')}" target="_blank" style="color:#2563eb;">Avaa kartta.hel.fi →</a>
+                                <a href="https://kartta.hel.fi/?setlanguage=fi&autosearch=${encodeURIComponent(p.kaavatunnus || '')}" target="_blank" style="color:#2563eb;">{t('Avaa kartta.hel.fi →')}</a>
                             </div>`
                         );
                     }}

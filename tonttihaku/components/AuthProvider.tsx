@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
+import { useT } from '@/lib/i18n';
 
 interface AuthContextType {
     isAuthenticated: boolean;
@@ -22,6 +23,7 @@ export function useAuth() {
 }
 
 export default function AuthProvider({ children }: { children: React.ReactNode }) {
+    const t = useT();
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [username, setUsernameState] = useState('Tuntematon');
     const [isLoading, setIsLoading] = useState(true);
@@ -71,7 +73,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     if (isLoading) {
         return (
             <div className="flex items-center justify-center h-screen bg-gray-100">
-                <div className="text-gray-500">Ladataan...</div>
+                <div className="text-gray-500">{t('Ladataan...')}</div>
             </div>
         );
     }

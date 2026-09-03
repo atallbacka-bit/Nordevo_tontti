@@ -39,6 +39,7 @@ import HistoryModal from './HistoryModal';
 import AddressSearch, { AddressSearchResult } from './AddressSearch';
 import PlotPopupCard from './PlotPopupCard';
 import { parseZonings, getContactPersons, formatDate, formatShortDate } from '@/lib/plotUtils';
+import { useT } from '@/lib/i18n';
 
 // Selectable basemaps for the map-corner switcher
 const BASE_LAYERS: { id: string; label: string }[] = [
@@ -81,6 +82,7 @@ function SalesPopupContent({
     formatDate: (dateStr: string) => string;
     getZoningColor: (code: string) => string;
 }) {
+    const t = useT();
     const [showDetails, setShowDetails] = useState(false);
     const zonings = parseZonings(sale);
     const totalBR = zonings.reduce((sum, z) => sum + (z.buildingRight || 0), 0) || sale.buildingRight || 0;
@@ -91,7 +93,7 @@ function SalesPopupContent({
             <h3 className="font-bold text-lg mb-1">{sale.name || sale.address}</h3>
 
             {sale.updatedBy && (
-                <p className="text-gray-500 text-xs mb-2">Kirjaaja: {sale.updatedBy}</p>
+                <p className="text-gray-500 text-xs mb-2">{t('Kirjaaja')}: {sale.updatedBy}</p>
             )}
 
             <div className="space-y-1 mb-2">
@@ -109,7 +111,7 @@ function SalesPopupContent({
                     ))}
                     {zonings.length > 1 && (
                         <div className="border-t mt-1 pt-1 flex justify-between font-bold text-xs">
-                            <span>Yhteensä</span>
+                            <span>{t('Yhteensä')}</span>
                             <span>{totalBR.toLocaleString()} k-m²</span>
                         </div>
                     )}
@@ -123,7 +125,7 @@ function SalesPopupContent({
                 onClick={() => setShowDetails(!showDetails)}
                 className="w-full text-xs text-blue-600 hover:text-blue-800 py-1 border-t mt-2"
             >
-                {showDetails ? '▲ Piilota lisätiedot' : '▼ Lisää tarkentavia tietoja'}
+                {showDetails ? t('▲ Piilota lisätiedot') : t('▼ Lisää tarkentavia tietoja')}
             </button>
 
             {showDetails && (
@@ -170,6 +172,7 @@ function WMSUpdater({ cqlFilter, opacity, layerRef }: { cqlFilter: string, opaci
 
 
 function PropertyBoundariesLayer({ visible }: { visible: boolean }) {
+    const t = useT();
     const map = useMap();
     const [data, setData] = useState<any>(null);
     const [layerKey, setLayerKey] = useState<number>(0);
@@ -226,13 +229,13 @@ function PropertyBoundariesLayer({ visible }: { visible: boolean }) {
                     const popupContent = `
                         <div style="min-width: 160px;">
                             <div style="margin-bottom: 8px;">
-                                <b>Kiinteistö:</b><br/>
+                                <b>{t('Kiinteistö:')}</b><br/>
                                 <span style="font-size: 14px; font-weight: 500;">${propertyId}</span>
                             </div>
                             <a href="${autoSearchUrl}" target="_blank" 
                                style="display: block; width: 100%; padding: 8px; background: #0066cc; color: white; 
                                       text-align: center; text-decoration: none; border-radius: 4px; font-size: 13px; font-weight: 500; box-sizing: border-box;">
-                                Avaa karttapalvelussa →
+                                {t('Avaa karttapalvelussa →')}
                             </a>
                         </div>
                     `;
@@ -244,6 +247,7 @@ function PropertyBoundariesLayer({ visible }: { visible: boolean }) {
 }
 
 export default function MapComponent() {
+    const t = useT();
     const [cqlFilter, setCqlFilter] = useState('laskvar_ak < 0 AND laskvar_ap < 0');
     const [hasSearched, setHasSearched] = useState(false);
     const [wmsOpacity, setWmsOpacity] = useState(1.0);
@@ -564,11 +568,11 @@ export default function MapComponent() {
             if (data.success && data.plots) {
                 setPlotsData(data.plots);
             } else {
-                alert("Virhe tallennuksessa: " + (data.error || 'Tuntematon virhe'));
+                alert(t('Virhe tallennuksessa') + ': ' + (data.error || t('Tuntematon virhe')));
             }
         } catch (err) {
             console.error(err);
-            alert("Virhe tallennuksessa: " + err);
+            alert(t('Virhe tallennuksessa') + ': ' + err);
         }
     };
 
@@ -579,11 +583,11 @@ export default function MapComponent() {
             if (data.success && data.plots) {
                 setPlotsData(data.plots);
             } else {
-                alert("Virhe muistiinpanon tallennuksessa: " + (data.error || 'Tuntematon virhe'));
+                alert(t('Virhe muistiinpanon tallennuksessa') + ': ' + (data.error || t('Tuntematon virhe')));
             }
         } catch (err) {
             console.error(err);
-            alert("Virhe muistiinpanon tallennuksessa: " + err);
+            alert(t('Virhe muistiinpanon tallennuksessa') + ': ' + err);
         }
     };
 
@@ -700,11 +704,11 @@ export default function MapComponent() {
             if (data.success && data.plots) {
                 setPlotsData(data.plots);
             } else {
-                alert("Virhe tallennuksessa.");
+                alert(t('Virhe tallennuksessa.'));
             }
         } catch (err) {
             console.error(err);
-            alert("Virhe tallennuksessa.");
+            alert(t('Virhe tallennuksessa.'));
         }
         setLogContactPlot(null);
         setIsLogContactModalOpen(false);
@@ -734,6 +738,7 @@ export default function MapComponent() {
 
     // Click handler for GetFeatureInfo
     function MapEvents() {
+        const t = useT();
         const map = useMap();
 
         useEffect(() => {
@@ -763,7 +768,7 @@ export default function MapComponent() {
                     try {
                         const res = await fetch(`${url}?${queryString}`);
                         const text = await res.text();
-                        if (text && text.length > 100) content += `<b>Asemakaava:</b><br />${sanitizeHtml(text)}<br />`;
+                        if (text && text.length > 100) content += `<b>{t('Asemakaava:')}</b><br />${sanitizeHtml(text)}<br />`;
                     } catch (err) { console.error(err); }
                 }
 
@@ -852,7 +857,7 @@ export default function MapComponent() {
         if (layer === 'edit_mode') {
             if (showSales) setEditMode(visible);
             else {
-                if (visible) alert("Ota ensin 'Myydyt tontit' -taso käyttöön.");
+                if (visible) alert(t("Ota ensin 'Myydyt tontit' -taso käyttöön."));
                 setEditMode(false);
             }
         }
@@ -861,7 +866,7 @@ export default function MapComponent() {
                 setAddPlotMode(visible);
                 if (!visible) setAddPastPlotMode(false);
             } else {
-                if (visible) alert("Ota ensin 'Tunnetut tontit' -taso käyttöön.");
+                if (visible) alert(t("Ota ensin 'Tunnetut tontit' -taso käyttöön."));
                 setAddPlotMode(false);
                 setAddPastPlotMode(false);
             }
@@ -924,12 +929,12 @@ export default function MapComponent() {
                     <button
                         onClick={() => setIsPanelOpen(true)}
                         className="absolute top-4 left-4 z-[1000] bg-white p-3 rounded-xl shadow-lg border border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-all flex items-center gap-2 group"
-                        title="Näytä valikko"
+                        title={t('Näytä valikko')}
                     >
                         <svg className="w-5 h-5 text-slate-600 group-hover:text-blue-600 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                         </svg>
-                        <span className="text-sm font-semibold text-slate-700 group-hover:text-blue-700 transition-colors hidden sm:block">Valikko</span>
+                        <span className="text-sm font-semibold text-slate-700 group-hover:text-blue-700 transition-colors hidden sm:block">{t('Valikko')}</span>
                     </button>
                 )}
 
@@ -940,8 +945,8 @@ export default function MapComponent() {
                     <button
                         onClick={() => setBaseMenuOpen(!baseMenuOpen)}
                         className={`flex items-center justify-center w-[38px] h-[38px] bg-white rounded-md shadow-md border transition-colors ${baseMenuOpen ? 'border-blue-400 text-blue-600' : 'border-slate-200 text-slate-600 hover:text-slate-900'}`}
-                        title="Karttapohja"
-                        aria-label="Vaihda karttapohja"
+                        title={t('Karttapohja')}
+                        aria-label={t('Vaihda karttapohja')}
                     >
                         <svg className="w-[18px] h-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M12 3l9 5-9 5-9-5 9-5z" />
@@ -950,14 +955,14 @@ export default function MapComponent() {
                     </button>
                     {baseMenuOpen && (
                         <div className="absolute right-0 mt-1.5 w-52 bg-white border border-slate-200 rounded-lg shadow-lg py-1.5">
-                            <div className="px-3 pb-1 pt-0.5 text-[10px] font-bold text-slate-400 uppercase tracking-[0.07em]">Karttapohja</div>
+                            <div className="px-3 pb-1 pt-0.5 text-[10px] font-bold text-slate-400 uppercase tracking-[0.07em]">{t('Karttapohja')}</div>
                             {BASE_LAYERS.map(bl => (
                                 <button
                                     key={bl.id}
                                     onClick={() => { setBaseLayer(bl.id); setBaseMenuOpen(false); }}
                                     className={`w-full flex items-center justify-between text-left px-3 py-1.5 text-[12.5px] transition-colors ${baseLayer === bl.id ? 'text-blue-700 font-semibold bg-blue-50/60' : 'text-slate-700 hover:bg-slate-50'}`}
                                 >
-                                    {bl.label}
+                                    {t(bl.label)}
                                     {baseLayer === bl.id && (
                                         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                                             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
