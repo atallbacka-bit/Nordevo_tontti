@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4 -4 649 108" width="649" height="108">
+<title>Nordevo</title>
+<clipPath id="cn"><path d="M0,3 L3,0 L59.5,0 L59.5,97 L56.5,100 L0,100 Z"></path></clipPath>
+<clipPath id="cb"><rect x="60" y="0" width="640" height="100"></rect></clipPath>
+<g fill="none" stroke="#221c12" stroke-width="6" stroke-linejoin="bevel" stroke-linecap="butt">
+<path d="M3,100 L3,0 M2.465,-1 L57.035,101 M56.5,100 L56.5,0" clip-path="url(#cn)"></path>
+<g clip-path="url(#cb)">
+<circle cx="128" cy="50" r="47"></circle>
+<path d="M196.5,100 L196.5,3 L222,3 A24.5,24.5 0 0 1 222,52 L196.5,52 M216,52 L251.06,101.5"></path>
+<path d="M271.5,100 L271.5,0 M268.5,3 L296,3 A47,47 0 0 1 296,97 L268.5,97"></path>
+<path d="M420,3 L354.4,3 A75,75 0 0 1 354.4,97 L420,97 M372,50 L413,50"></path>
+<path d="M441.745,-1 L467.5,100 L493.255,-1"></path>
+<circle cx="564.5" cy="50" r="47"></circle>
+</g>
+</g>
+<circle cx="632" cy="91" r="9" fill="#c25a17" stroke="none"></circle>
+</svg>

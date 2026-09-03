@@ -337,6 +337,12 @@ export default function PlotPopupCard({
                         >
                             {copied ? 'Linkki kopioitu ✓' : 'Jaa linkki'}
                         </button>
+                        <button
+                            onClick={() => { setMenuOpen(false); window.open(`/api/plot-deck?id=${plot.id}`, '_blank'); }}
+                            className="w-full text-left px-3 py-1.5 text-[11.5px] text-slate-700 hover:bg-slate-50"
+                        >
+                            Lataa esitys (.pptx)
+                        </button>
                         {!isSold && (
                             <>
                                 <button
