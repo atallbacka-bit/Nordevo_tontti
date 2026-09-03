@@ -41,6 +41,14 @@ import PlotPopupCard from './PlotPopupCard';
 import { parseZonings, getContactPersons, formatDate, formatShortDate } from '@/lib/plotUtils';
 import { useT } from '@/lib/i18n';
 
+// CARTO raster basemaps need an API key since Aug 2026 — without one the
+// tiles come back with an "API KEY REQUIRED" watermark. Free fair-use tier
+// (5M tiles/month), key from carto.com/basemaps/apikey, stored in
+// NEXT_PUBLIC_CARTO_API_KEY. The key rides on the tile URL as ?key=…
+// (api_key / apikey spellings are silently ignored).
+const CARTO_KEY = process.env.NEXT_PUBLIC_CARTO_API_KEY;
+const CARTO_LIGHT_URL = `https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png${CARTO_KEY ? `?key=${CARTO_KEY}` : ''}`;
+
 // Selectable basemaps for the map-corner switcher
 const BASE_LAYERS: { id: string; label: string }[] = [
     { id: 'light', label: 'Vaalea' },
@@ -1163,7 +1171,7 @@ export default function MapComponent() {
                         <TileLayer
                             key="base-light"
                             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
-                            url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+                            url={CARTO_LIGHT_URL}
                         />
                     )}
                     {baseLayer === 'osm' && (
