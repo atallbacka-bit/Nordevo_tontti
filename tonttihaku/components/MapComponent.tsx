@@ -180,6 +180,22 @@ function WMSUpdater({ cqlFilter, opacity, layerRef }: { cqlFilter: string, opaci
 
 
 
+// Shoelace area of a GeoJSON (Multi)Polygon's outer rings in degrees² — only
+// used for relative ordering, so no projection needed.
+function approxArea(geom: any): number {
+    const ringArea = (ring: number[][]) => {
+        let sum = 0;
+        for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+            sum += ring[j][0] * ring[i][1] - ring[i][0] * ring[j][1];
+        }
+        return Math.abs(sum) / 2;
+    };
+    if (!geom) return 0;
+    if (geom.type === 'Polygon') return ringArea(geom.coordinates[0] || []);
+    if (geom.type === 'MultiPolygon') return geom.coordinates.reduce((a: number, p: number[][][]) => a + ringArea(p[0] || []), 0);
+    return 0;
+}
+
 function PropertyBoundariesLayer({ visible }: { visible: boolean }) {
     const map = useMap();
     const [data, setData] = useState<any>(null);
@@ -219,6 +235,12 @@ function PropertyBoundariesLayer({ visible }: { visible: boolean }) {
                 const res = await fetch(url);
                 if (!res.ok) throw new Error(`Failed to fetch property boundaries`);
                 const geojson = await res.json();
+                // Leaflet hit-tests the last-drawn path, and MML's yleinen alue
+                // polygons (streets, parks) can cover a whole district — draw big
+                // areas first so a click lands on the small plot on top of them.
+                if (Array.isArray(geojson?.features)) {
+                    geojson.features.sort((a: any, b: any) => approxArea(b.geometry) - approxArea(a.geometry));
+                }
                 setData(geojson);
                 setLayerKey(Date.now());
             } catch (err) {

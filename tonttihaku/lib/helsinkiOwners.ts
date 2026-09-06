@@ -237,31 +237,46 @@ function mapPlanUnit(p: any): HkiPlanUnit {
     };
 }
 
-/** Plans linked to the estate plus its plan units. Fails soft: [] on error. */
+/**
+ * The clicked plot's plan unit(s) and the plan(s) governing them. Fails soft:
+ * [] on error.
+ *
+ * The register links plan units to the estate by key, which also brings in
+ * units of other plots the estate was formed from (street units such as
+ * 91-20-9901-0), and it links every plan that touches the estate. Only the
+ * clicked plot's own unit is shown, and only the plan that unit belongs to;
+ * when no unit matches, fall back to the linked plans without units.
+ */
 async function fetchPlans(ident1: string, signal?: AbortSignal): Promise<{ plans: HkiPlan[]; planUnits: HkiPlanUnit[] }> {
     const links = await swQuery(L_ESTATE_PLANS, `ident1=='${ident1}'`, 50, signal).catch(() => [] as any[]);
-    const keys = Array.from(new Set(links.map(l => Number(l.plan_key)).filter(k => Number.isFinite(k))));
     const estateKey = links.map(l => Number(l.real_estate_key)).find(k => Number.isFinite(k));
+    const unitRows = estateKey !== undefined
+        ? await swQuery(L_PLAN_UNITS, `estate_id==${estateKey}`, 50, signal).catch(() => [] as any[])
+        : [];
 
-    const [planRows, unitRows] = await Promise.all([
-        Promise.all(keys.map(k =>
-            swQuery(L_PLAN_AREAS, `(plan_key==${k}&&municipality_db_code==${HELSINKI_MUNICIPALITY})`, 1, signal).catch(() => [] as any[])
-        )).then(rows => rows.flat()),
-        estateKey !== undefined
-            ? swQuery(L_PLAN_UNITS, `estate_id==${estateKey}`, 50, signal).catch(() => [] as any[])
-            : Promise.resolve([] as any[]),
-    ]);
+    const allUnits = unitRows.map(mapPlanUnit).filter(u => u.id);
+    let ownUnits = allUnits.filter(u => u.id === ident1);
+    if (ownUnits.some(u => u.state && /voimassa/i.test(u.state))) {
+        ownUnits = ownUnits.filter(u => u.state && /voimassa/i.test(u.state));
+    }
+    const governingKeys = new Set(ownUnits.map(u => u.planKey).filter((k): k is number => k != null));
+    const linkKeys = links.map(l => Number(l.plan_key)).filter(k => Number.isFinite(k));
+    const keys = Array.from(new Set(governingKeys.size ? Array.from(governingKeys) : linkKeys));
+
+    const planRows = await Promise.all(keys.map(k =>
+        swQuery(L_PLAN_AREAS, `(plan_key==${k}&&municipality_db_code==${HELSINKI_MUNICIPALITY})`, 1, signal).catch(() => [] as any[])
+    )).then(rows => rows.flat());
 
     const plans = planRows.map(mapPlan).filter(p => p.tunnus);
     // a link without a plan record still identifies the plan (kaavatunnus)
     for (const l of links) {
         const key = Number(l.plan_key);
-        if (l.ident && !plans.some(p => p.key === key)) {
+        if (keys.includes(key) && l.ident && !plans.some(p => p.key === key)) {
             plans.push({ key, tunnus: String(l.ident).trim(), type: str(l.plan_type_fi) });
         }
     }
     plans.sort((a, b) => (b.sanctioned || '').localeCompare(a.sanctioned || ''));
-    return { plans, planUnits: unitRows.map(mapPlanUnit).filter(u => u.id) };
+    return { plans, planUnits: ownUnits };
 }
 
 const isCity = (n?: string) => !!n && /^helsingin kaupunki/i.test(n);
