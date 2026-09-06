@@ -765,7 +765,7 @@ export default function FilterPanel({
                                 { id: 'sth_analysis', label: 'Markkina-analyysi', desc: 'Klikkaa karttaa — analyysi valitulta säteeltä' },
                                 { id: 'sth_plans', label: 'Kaavat vireillä (Hki)', desc: 'Vireillä olevat asemakaavat' },
                                 { id: 'business_plots', label: 'Vapaat yritystontit', desc: 'Helsingin ja Espoon vapaat tontit' },
-                                { id: 'kiinteistot', label: 'Kiinteistöt', desc: 'Kiinteistörajat ja -tunnukset' },
+                                { id: 'kiinteistot', label: 'Kiinteistöt', desc: 'Kiinteistörajat ja -tunnukset — klikkaa tonttia nähdäksesi omistajat (Hki)' },
                                 { id: 'asemakaava_info', label: 'Asemakaavatiedot', desc: 'Klikkaa karttaa nähdäksesi tiedot' },
                                 { id: 'sales', label: 'Myydyt tontit', desc: 'Toteutuneet tonttikaupat' },
                                 { id: 'apartments', label: 'Uudet asunnot', desc: 'Helsingin uusien asuntojen hinnat' },

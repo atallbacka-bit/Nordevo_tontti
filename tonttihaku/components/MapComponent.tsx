@@ -16,7 +16,7 @@ function sanitizeHtml(html: string): string {
     return doc.body.innerHTML;
 }
 
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { MapContainer, TileLayer, WMSTileLayer, useMap, Marker, Popup, Pane, GeoJSON } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import 'leaflet/dist/leaflet.css';
@@ -38,6 +38,7 @@ import LogContactModal from './LogContactModal';
 import HistoryModal from './HistoryModal';
 import AddressSearch, { AddressSearchResult } from './AddressSearch';
 import PlotPopupCard from './PlotPopupCard';
+import ParcelOwnerPopup from './ParcelOwnerPopup';
 import { parseZonings, getContactPersons, formatDate, formatShortDate } from '@/lib/plotUtils';
 import { useT } from '@/lib/i18n';
 
@@ -180,25 +181,38 @@ function WMSUpdater({ cqlFilter, opacity, layerRef }: { cqlFilter: string, opaci
 
 
 function PropertyBoundariesLayer({ visible }: { visible: boolean }) {
-    const t = useT();
     const map = useMap();
     const [data, setData] = useState<any>(null);
     const [layerKey, setLayerKey] = useState<number>(0);
+    // Parcel clicked on the layer → owner/plan popup fed by Helsingin
+    // karttapalvelu (see /api/property-owners). Kept outside the GeoJSON so it
+    // survives the moveend refetches that re-key the layer.
+    const [selected, setSelected] = useState<{ tunnus: string; lat: number; lng: number } | null>(null);
+    const popupRef = useRef<L.Popup | null>(null);
+    const lastBboxRef = useRef<string>('');
 
     useEffect(() => {
         if (!visible) {
             setData(null);
+            setSelected(null);
+            lastBboxRef.current = '';
             return;
         }
 
         const fetchData = async () => {
             if (map.getZoom() < 13) {
                 setData(null);
+                lastBboxRef.current = '';
                 return;
             }
 
             const bounds = map.getBounds();
             const bbox = `${bounds.getWest()},${bounds.getSouth()},${bounds.getEast()},${bounds.getNorth()}`;
+            // Leaflet fires moveend even for zero-length pans (a popup's sub-pixel
+            // auto-pan does that). Refetching the same view would re-render the
+            // popup, which auto-pans again → endless loop. Skip repeats.
+            if (bbox === lastBboxRef.current) return;
+            lastBboxRef.current = bbox;
             const url = `/api/property-boundaries?bbox=${encodeURIComponent(bbox)}`;
 
             try {
@@ -208,6 +222,7 @@ function PropertyBoundariesLayer({ visible }: { visible: boolean }) {
                 setData(geojson);
                 setLayerKey(Date.now());
             } catch (err) {
+                lastBboxRef.current = '';
                 console.error('PropertyBoundaries: Error fetching:', err);
             }
         };
@@ -222,35 +237,59 @@ function PropertyBoundariesLayer({ visible }: { visible: boolean }) {
         return () => { map.off('moveend', onMoveEnd); };
     }, [visible, map]);
 
-    if (!visible || !data || !data.features || data.features.length === 0) return null;
+    // react-leaflet re-adds a Popup whenever its position / handlers / children
+    // props change identity and calls popup.update() (auto-pan) each time, so
+    // keep them stable across the re-renders caused by refetches.
+    const onPopupResize = useCallback(() => { popupRef.current?.update(); }, []);
+    const popupHandlers = useMemo(() => ({ remove: () => setSelected(null) }), []);
+    const selectedLat = selected?.lat, selectedLng = selected?.lng, selectedTunnus = selected?.tunnus;
+    const popupPosition = useMemo<[number, number] | null>(
+        () => (selectedLat != null && selectedLng != null ? [selectedLat, selectedLng] : null),
+        [selectedLat, selectedLng]
+    );
+    const popupContent = useMemo(
+        () => (selectedTunnus ? <ParcelOwnerPopup tunnus={selectedTunnus} onResize={onPopupResize} /> : null),
+        [selectedTunnus, onPopupResize]
+    );
+
+    if (!visible) return null;
 
     return (
-        <GeoJSON
-            key={layerKey}
-            data={data}
-            style={{ color: '#ff0000', weight: 2, fillOpacity: 0.02, opacity: 1 }}
-            onEachFeature={(feature, layer) => {
-                const props = feature.properties;
-                if (props && props.kiinteistotunnuksenEsitysmuoto) {
-                    const propertyId = props.kiinteistotunnuksenEsitysmuoto;
-                    const autoSearchUrl = `https://kartta.hel.fi/?setlanguage=fi&autosearch=${encodeURIComponent(propertyId)}`;
-                    const popupContent = `
-                        <div style="min-width: 160px;">
-                            <div style="margin-bottom: 8px;">
-                                <b>{t('Kiinteistö:')}</b><br/>
-                                <span style="font-size: 14px; font-weight: 500;">${propertyId}</span>
-                            </div>
-                            <a href="${autoSearchUrl}" target="_blank" 
-                               style="display: block; width: 100%; padding: 8px; background: #0066cc; color: white; 
-                                      text-align: center; text-decoration: none; border-radius: 4px; font-size: 13px; font-weight: 500; box-sizing: border-box;">
-                                {t('Avaa karttapalvelussa →')}
-                            </a>
-                        </div>
-                    `;
-                    layer.bindPopup(popupContent);
-                }
-            }}
-        />
+        <>
+            {data && data.features && data.features.length > 0 && (
+                <GeoJSON
+                    key={layerKey}
+                    data={data}
+                    style={{ color: '#ff0000', weight: 2, fillOpacity: 0.02, opacity: 1 }}
+                    onEachFeature={(feature, layer) => {
+                        const props = feature.properties || {};
+                        // display form "91-1-591-2"; the 14-digit id is accepted by the API too
+                        const tunnus: string | undefined = props.kiinteistotunnuksenEsitysmuoto || props.kiinteistotunnus;
+                        if (!tunnus) return;
+                        layer.on('click', (e: L.LeafletMouseEvent) => {
+                            // same parcel again: keep the anchor so the open popup isn't re-created
+                            setSelected(prev => (prev && prev.tunnus === tunnus ? prev : { tunnus, lat: e.latlng.lat, lng: e.latlng.lng }));
+                        });
+                    }}
+                />
+            )}
+            {selected && popupPosition && (
+                <Popup
+                    key={selected.tunnus}
+                    ref={popupRef}
+                    className="plot-popup"
+                    // this layer lives in the plot-overlays pane (z 450); without an
+                    // explicit pane the popup would inherit it and sit under markers
+                    pane="popupPane"
+                    position={popupPosition}
+                    minWidth={300}
+                    maxWidth={300}
+                    eventHandlers={popupHandlers}
+                >
+                    {popupContent}
+                </Popup>
+            )}
+        </>
     );
 }
 
