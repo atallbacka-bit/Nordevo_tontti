@@ -223,6 +223,8 @@ export const EN: Record<string, string> = {
     'Vaalea': 'Light',
     'Värillinen': 'Colour',
     'Satelliitti': 'Satellite',
+    'CARTO-avain puuttuu': 'CARTO key missing',
+    'NEXT_PUBLIC_CARTO_API_KEY puuttuu build-ympäristöstä': 'NEXT_PUBLIC_CARTO_API_KEY is missing from the build environment',
     'Asemakaava · Helsinki': 'Detailed plan · Helsinki',
     'Asemakaava · Espoo': 'Detailed plan · Espoo',
     'Asemakaava · Vantaa': 'Detailed plan · Vantaa',

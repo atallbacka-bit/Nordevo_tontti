@@ -47,8 +47,19 @@ import { useT } from '@/lib/i18n';
 // (5M tiles/month), key from carto.com/basemaps/apikey, stored in
 // NEXT_PUBLIC_CARTO_API_KEY. The key rides on the tile URL as ?key=…
 // (api_key / apikey spellings are silently ignored).
+// NOTE: NEXT_PUBLIC_* values are inlined at *build* time, so the key has to be
+// present in the build environment (Vercel → Settings → Environment Variables,
+// Production scope) — .env.local only covers local dev, and adding the variable
+// on Vercel after a deploy does nothing until the next build.
 const CARTO_KEY = process.env.NEXT_PUBLIC_CARTO_API_KEY;
-const CARTO_LIGHT_URL = `https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png${CARTO_KEY ? `?key=${CARTO_KEY}` : ''}`;
+const HAS_CARTO_KEY = !!CARTO_KEY;
+const CARTO_LIGHT_URL = `https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png${HAS_CARTO_KEY ? `?key=${CARTO_KEY}` : ''}`;
+// Without a key CARTO serves watermarked tiles, so the "Vaalea" option is
+// disabled and the map opens on the keyless OSM basemap instead.
+const DEFAULT_BASE_LAYER = HAS_CARTO_KEY ? 'light' : 'osm';
+if (!HAS_CARTO_KEY && typeof window !== 'undefined') {
+    console.warn('[tonttihaku] NEXT_PUBLIC_CARTO_API_KEY is missing from this build — the "Vaalea" (CARTO light) basemap is disabled. Add the key to the hosting environment and rebuild.');
+}
 
 // Selectable basemaps for the map-corner switcher
 const BASE_LAYERS: { id: string; label: string }[] = [
@@ -403,7 +414,7 @@ export default function MapComponent() {
 
     const [showKiinteistot, setShowKiinteistot] = useState(false);
     const [showAsemakaavaInfo, setShowAsemakaavaInfo] = useState(false);
-    const [baseLayer, setBaseLayer] = useState('light');
+    const [baseLayer, setBaseLayer] = useState(DEFAULT_BASE_LAYER);
     const [baseMenuOpen, setBaseMenuOpen] = useState(false);
     const [popupInfo, setPopupInfo] = useState<{ lat: number, lng: number, content: string } | null>(null);
     const [isPanelOpen, setIsPanelOpen] = useState(true);
@@ -1025,20 +1036,28 @@ export default function MapComponent() {
                     {baseMenuOpen && (
                         <div className="absolute right-0 mt-1.5 w-52 bg-white border border-slate-200 rounded-lg shadow-lg py-1.5">
                             <div className="px-3 pb-1 pt-0.5 text-[10px] font-bold text-slate-400 uppercase tracking-[0.07em]">{t('Karttapohja')}</div>
-                            {BASE_LAYERS.map(bl => (
+                            {BASE_LAYERS.map(bl => {
+                                const unavailable = bl.id === 'light' && !HAS_CARTO_KEY;
+                                return (
                                 <button
                                     key={bl.id}
+                                    disabled={unavailable}
+                                    title={unavailable ? t('NEXT_PUBLIC_CARTO_API_KEY puuttuu build-ympäristöstä') : undefined}
                                     onClick={() => { setBaseLayer(bl.id); setBaseMenuOpen(false); }}
-                                    className={`w-full flex items-center justify-between text-left px-3 py-1.5 text-[12.5px] transition-colors ${baseLayer === bl.id ? 'text-blue-700 font-semibold bg-blue-50/60' : 'text-slate-700 hover:bg-slate-50'}`}
+                                    className={`w-full flex items-center justify-between text-left px-3 py-1.5 text-[12.5px] transition-colors ${unavailable ? 'text-slate-400 cursor-not-allowed' : baseLayer === bl.id ? 'text-blue-700 font-semibold bg-blue-50/60' : 'text-slate-700 hover:bg-slate-50'}`}
                                 >
                                     {t(bl.label)}
+                                    {unavailable && (
+                                        <span className="text-[10.5px] text-amber-600">{t('CARTO-avain puuttuu')}</span>
+                                    )}
                                     {baseLayer === bl.id && (
                                         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                                             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                                         </svg>
                                     )}
                                 </button>
-                            ))}
+                                );
+                            })}
                         </div>
                     )}
                 </div>
